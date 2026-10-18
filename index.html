@@ -2,97 +2,87 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TradingAnalyzer</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: #101722;
-      color: white;
-      font-family: Arial, sans-serif;
-    }
-    header { padding: 16px; }
-    h2 { margin: 0 0 8px; }
-    .price { color: #9caec4; font-size: 14px; }
-    .buttons {
-      display: flex;
-      gap: 6px;
-      padding: 0 10px 12px;
-      flex-wrap: wrap;
-    }
-    button {
-      background: #253449;
-      color: white;
-      border: 0;
-      padding: 10px 12px;
-      border-radius: 6px;
-    }
-    button.active { background: #1686f8; }
-    #chart { height: 65vh; min-height: 350px; }
-    footer {
-      padding: 12px;
-      color: #9caec4;
-      font-size: 12px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TradingAnalyzer — XAU/USD</title>
+<script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101722;color:#edf3fa;font-family:Arial,sans-serif}
+header{padding:14px}
+h2{margin:0 0 7px}
+small{color:#9aabc0}
+.controls,.settings{display:flex;flex-wrap:wrap;gap:7px;padding:8px 12px}
+button{background:#253449;color:white;border:0;border-radius:6px;padding:10px 12px}
+button.active{background:#1686f8}
+#chart{height:58vh;min-height:340px;width:100%}
+.panel{margin:10px;padding:12px;background:#182434;border-radius:8px}
+.panel label{display:inline-flex;align-items:center;gap:6px;margin:7px 12px 7px 0}
+select,input{accent-color:#1686f8}
+#status{padding:10px 14px;color:#b8c9dc;font-size:13px}
+</style>
 </head>
 <body>
-  <header>
-    <h2>TradingAnalyzer</h2>
-    <div class="price">Marché : XAU/USD — Or contre dollar</div>
-  </header>
+<header>
+<h2>TradingAnalyzer</h2>
+<div><strong>XAU/USD — Or contre dollar</strong></div>
+<small>Graphique personnalisé • Analyse technique</small>
+</header>
 
-  <div class="buttons">
-    <button data-tf="1" >1m</button>
-    <button data-tf="5">5m</button>
-    <button data-tf="15">15m</button>
-    <button data-tf="60">1h</button>
-    <button data-tf="240">4h</button>
-    <button data-tf="D">1D</button>
-  </div>
+<div class="controls" id="timeframes">
+<button data-tf="1min">1 min</button>
+<button data-tf="5min" class="active">5 min</button>
+<button data-tf="15min">15 min</button>
+<button data-tf="1h">1 h</button>
+<button data-tf="4h">4 h</button>
+<button data-tf="1day">1 jour</button>
+</div>
 
-  <div id="chart"></div>
-  <footer>
-    Graphique fourni par TradingView. Les données dépendent de la source.
-  </footer>
+<div id="chart"></div>
+<div id="status">Préparation du graphique…</div>
 
-  <script src="https://s3.tradingview.com/tv.js"></script>
-  <script>
-    let widget;
+<div class="panel">
+<strong>Réglages des analyses</strong>
+<div class="settings">
+<label><input type="checkbox" id="fvg" checked> FVG</label>
+<label><input type="checkbox" id="structure" checked> BOS / CHoCH</label>
+<label><input type="checkbox" id="liquidity" checked> Liquidité</label>
+<label><input type="checkbox" id="levels" checked> Supports / résistances</label>
+</div>
+<small>Les réglages seront reliés aux détections automatiques dans les prochaines étapes.</small>
+</div>
 
-    function showChart(interval) {
-      document.querySelectorAll("[data-tf]").forEach(button => {
-        button.classList.toggle("active",
-          button.dataset.tf === interval);
-      });
+<script>
+const chartEl=document.getElementById('chart');
+const chart=LightweightCharts.createChart(chartEl,{
+  width:chartEl.clientWidth,
+  height:chartEl.clientHeight,
+  layout:{background:{color:'#101722'},textColor:'#d8e3f0'},
+  grid:{vertLines:{color:'#1d2938'},horzLines:{color:'#1d2938'}},
+  rightPriceScale:{borderColor:'#34445a'},
+  timeScale:{borderColor:'#34445a',timeVisible:true,secondsVisible:false},
+  crosshair:{mode:LightweightCharts.CrosshairMode.Normal}
+});
+const candles=chart.addCandlestickSeries({
+  upColor:'#20b887',downColor:'#ef5350',
+  borderUpColor:'#20b887',borderDownColor:'#ef5350',
+  wickUpColor:'#20b887',wickDownColor:'#ef5350'
+});
+function resizeChart(){
+  chart.applyOptions({width:chartEl.clientWidth,height:chartEl.clientHeight});
+}
+window.addEventListener('resize',resizeChart);
 
-      document.getElementById("chart").innerHTML = "";
-
-      widget = new TradingView.widget({
-        autosize: true,
-        symbol: "OANDA:XAUUSD",
-        interval: interval,
-        timezone: "Etc/UTC",
-        theme: "dark",
-        style: "1",
-        locale: "fr",
-        enable_publishing: false,
-        allow_symbol_change: false,
-        hide_side_toolbar: true,
-        container_id: "chart"
-      });
-    }
-
-    document.querySelectorAll("[data-tf]").forEach(button => {
-      button.addEventListener("click", () => {
-        showChart(button.dataset.tf);
-      });
-    });
-
-    window.addEventListener("load", () => showChart("15"));
-  </script>
+document.querySelectorAll('[data-tf]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('[data-tf]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('status').textContent=
+      'Unité choisie : '+btn.textContent+'. Connexion des données à préparer.';
+  });
+});
+document.getElementById('status').textContent=
+  'Graphique prêt. Les bougies de marché seront connectées à l’étape suivante.';
+</script>
 </body>
-                            </html>
-                            
+</html>
