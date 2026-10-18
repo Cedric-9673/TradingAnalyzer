@@ -1,0 +1,98 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TradingAnalyzer</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #101722;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    header { padding: 16px; }
+    h2 { margin: 0 0 8px; }
+    .price { color: #9caec4; font-size: 14px; }
+    .buttons {
+      display: flex;
+      gap: 6px;
+      padding: 0 10px 12px;
+      flex-wrap: wrap;
+    }
+    button {
+      background: #253449;
+      color: white;
+      border: 0;
+      padding: 10px 12px;
+      border-radius: 6px;
+    }
+    button.active { background: #1686f8; }
+    #chart { height: 65vh; min-height: 350px; }
+    footer {
+      padding: 12px;
+      color: #9caec4;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>TradingAnalyzer</h2>
+    <div class="price">Marché : XAU/USD — Or contre dollar</div>
+  </header>
+
+  <div class="buttons">
+    <button data-tf="1" >1m</button>
+    <button data-tf="5">5m</button>
+    <button data-tf="15">15m</button>
+    <button data-tf="60">1h</button>
+    <button data-tf="240">4h</button>
+    <button data-tf="D">1D</button>
+  </div>
+
+  <div id="chart"></div>
+  <footer>
+    Graphique fourni par TradingView. Les données dépendent de la source.
+  </footer>
+
+  <script src="https://s3.tradingview.com/tv.js"></script>
+  <script>
+    let widget;
+
+    function showChart(interval) {
+      document.querySelectorAll("[data-tf]").forEach(button => {
+        button.classList.toggle("active",
+          button.dataset.tf === interval);
+      });
+
+      document.getElementById("chart").innerHTML = "";
+
+      widget = new TradingView.widget({
+        autosize: true,
+        symbol: "OANDA:XAUUSD",
+        interval: interval,
+        timezone: "Etc/UTC",
+        theme: "dark",
+        style: "1",
+        locale: "fr",
+        enable_publishing: false,
+        allow_symbol_change: false,
+        hide_side_toolbar: true,
+        container_id: "chart"
+      });
+    }
+
+    document.querySelectorAll("[data-tf]").forEach(button => {
+      button.addEventListener("click", () => {
+        showChart(button.dataset.tf);
+      });
+    });
+
+    window.addEventListener("load", () => showChart("15"));
+  </script>
+</body>
+                            </html>
+                            
