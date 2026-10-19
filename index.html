@@ -160,6 +160,60 @@ window.addEventListener("resize", resizeChart);
 
 loadCandles();
 setInterval(loadCandles, 60000);
+const fvgTimeframes = ["15min", "1h", "4h", "1day"];
+const fvgZones = [];
+
+function detectFVG(candles, interval) {
+  const zones = [];
+
+  for (let i = 2; i < candles.length; i++) {
+    const first = candles[i - 2];
+    const third = candles[i];
+
+    // FVG haussier : le plus bas de la 3e bougie
+    // reste au-dessus du plus haut de la 1re.
+    if (third.low > first.high) {
+      zones.push({
+        type: "bullish",
+        interval,
+        low: first.high,
+        high: third.low,
+        time: third.time,
+        mitigated: false
+      });
+    }
+
+    // FVG baissier : le plus haut de la 3e bougie
+    // reste sous le plus bas de la 1re.
+    if (third.high < first.low) {
+      zones.push({
+        type: "bearish",
+        interval,
+        low: third.high,
+        high: first.low,
+        time: third.time,
+        mitigated: false
+      });
+    }
+  }
+
+  return zones;
+}
+
+async function loadFVGForTimeframe(interval) {
+  const response = await fetch(
+    API_URL + "?interval=" + encodeURIComponent(interval)
+  );
+
+  const data = await response.json();
+
+  if (!response.ok || !Array.isArray(data.candles)) {
+    throw new Error("Impossible de charger les FVG " + interval);
+  }
+
+  return detectFVG(data.candles, interval);
+  }
+      
 </script>
 </body>
 </html>
