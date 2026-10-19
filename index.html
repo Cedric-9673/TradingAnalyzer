@@ -421,4 +421,121 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
       let lastHigh = null, lastLow = null, trend = "neutral";
       let highBroken = false, lowBroken = false;
       for (let i = 4; i < data.length; i++) {
-        
+        // Un swing est confirmé seulement après deux bougies à droite.
+        const sh = swingHighs.find(s => s.index === i-2);
+        const sl = swingLows.find(s => s.index === i-2);
+        if (sh) { lastHigh = sh.high; highBroken = false; }
+        if (sl) { lastLow = sl.low; lowBroken = false; }
+        if (lastHigh != null && !highBroken && data[i].close > lastHigh) {
+          markers.push({ time:data[i].time, position:"belowBar", color:"#20b887", shape:"arrowUp", text:trend==="bearish"?"CHoCH ↑":"BOS ↑" });
+          trend = "bullish"; highBroken = true;
+        } else if (lastLow != null && !lowBroken && data[i].close < lastLow) {
+          markers.push({ time:data[i].time, position:"aboveBar", color:"#ef5350", shape:"arrowDown", text:trend==="bullish"?"CHoCH ↓":"BOS ↓" });
+          trend = "bearish"; lowBroken = true;
+        }
+      }
+    }
+    const signalMarker = detectSignal(data);
+    if (signalMarker) markers.push(signalMarker);
+    candlesSeries.setMarkers(markers.sort((a,b)=>a.time-b.time));
+
+    if (document.getElementById("showSR").checked) {
+      const recentHighs = swingHighs.slice(-3), recentLows = swingLows.slice(-3);
+      recentHighs.forEach(s => analysisLines.push(addPriceLevel(s.high, "Résistance", "#ef8d55")));
+      recentLows.forEach(s => analysisLines.push(addPriceLevel(s.low, "Support", "#64a8ff")));
+    }
+    if (document.getElementById("showLiquidity").checked) {
+      const highs = swingHighs.slice(-2), lows = swingLows.slice(-2);
+      highs.forEach(s => analysisLines.push(addPriceLevel(s.high, "Liquidité ↑", "#b28cff", LightweightCharts.LineStyle.Dotted)));
+      lows.forEach(s => analysisLines.push(addPriceLevel(s.low, "Liquidité ↓", "#b28cff", LightweightCharts.LineStyle.Dotted)));
+    }
+    const activeTools = [];
+    if (document.getElementById("showFVG").checked) activeTools.push("FVG");
+    if (document.getElementById("showBOS").checked) activeTools.push("BOS/CHoCH");
+    if (document.getElementById("showLiquidity").checked) activeTools.push("liquidité");
+    if (document.getElementById("showSR").checked) activeTools.push("supports/résistances");
+    const toolStatus = document.getElementById("analysisToolStatus");
+    if (toolStatus) toolStatus.textContent = "Outils activés : " + (activeTools.join(" · ") || "aucun") + " | marqueurs BOS/CHoCH : " + markers.length + " | niveaux tracés : " + analysisLines.length;
+  }
+
+  async function refreshFVG() {
+    if (!document.getElementById("showFVG").checked) {
+      drawFVGOverlay();
+      return;
+    }
+    const selected = Array.from(document.querySelectorAll(".fvg-tf:checked")).map(el => el.value);
+    const updated = new Map();
+    for (const interval of selected) {
+      try {
+        const data = await fetchCandles(interval);
+        updated.set(interval, detectFVG(data, interval).slice(-35));
+      } catch (err) {
+        console.warn("FVG " + interval, err);
+      }
+    }
+    fvgZonesByTimeframe = updated;
+    drawFVGOverlay();
+  }
+
+  async function loadCandles(interval = currentInterval) {
+    const myRequest = ++requestNumber;
+    currentInterval = interval;
+    setStatus("Chargement des bougies " + interval + "…");
+    try {
+      const fresh = await fetchCandles(interval);
+      if (myRequest !== requestNumber) return;
+      candles = fresh;
+      candlesSeries.setData(candles);
+      const last = candles[candles.length - 1];
+      priceEl.textContent = last.close.toFixed(2);
+      priceEl.className = last.close >= last.open ? "price-green" : "price-red";
+      calculateAnalysis(candles);
+      chart.timeScale().fitContent();
+      setStatus("Données chargées · " + candles.length + " bougies · unité " + interval + " · mise à jour automatique chaque minute.");
+      await refreshFVG();
+      drawFVGOverlay();
+    } catch (err) {
+      if (myRequest !== requestNumber) return;
+      setStatus("Impossible de charger les données : " + (err.message || "erreur inconnue") + ". Vérifiez la connexion et le Worker Cloudflare.", true);
+      // Ne pas effacer le dernier graphique valide en cas d'échec réseau.
+    }
+  }
+
+  document.querySelectorAll("#timeframes button").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll("#timeframes button").forEach(b => b.classList.toggle("active", b === button));
+      loadCandles(button.dataset.interval);
+    });
+  });
+
+  document.getElementById("refreshBtn").addEventListener("click", () => loadCandles(currentInterval));
+  ["showFVG","showBOS","showLiquidity","showSR"].forEach(id => {
+    document.getElementById(id).addEventListener("change", () => {
+      if (id === "showFVG") drawFVGOverlay();
+      if (candles.length) calculateAnalysis(candles);
+      drawFVGOverlay();
+    });
+  });
+  document.querySelectorAll(".fvg-tf").forEach(input => input.addEventListener("change", refreshFVG));
+
+  chart.timeScale().subscribeVisibleTimeRangeChange(drawFVGOverlay);
+  chart.subscribeCrosshairMove(() => {});
+  if ("ResizeObserver" in window) {
+    resizeObserver = new ResizeObserver(() => {
+      chart.applyOptions({ width: chartWrap.clientWidth, height: chartWrap.clientHeight });
+      drawFVGOverlay();
+    });
+    resizeObserver.observe(chartWrap);
+  } else {
+    window.addEventListener("resize", () => {
+      chart.applyOptions({ width: chartWrap.clientWidth, height: chartWrap.clientHeight });
+      drawFVGOverlay();
+    });
+  }
+
+  loadCandles(currentInterval);
+  refreshTimer = window.setInterval(() => loadCandles(currentInterval), 60000);
+})();
+</script>
+</body>
+</html>
