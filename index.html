@@ -330,7 +330,30 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
     }
 
     const lastIndex = data.length - 1;
-    const last = data[lastIndex];
+    const last = data[lastIndex]; 
+const entryPrice = last.close;
+const recentCandles = data.slice(Math.max(0, lastIndex - 10), lastIndex + 1);
+
+const recentLow = Math.min(...recentCandles.map(c => c.low));
+const recentHigh = Math.max(...recentCandles.map(c => c.high));
+
+const calculateRiskLevels = direction => {
+  const entry = entryPrice;
+  const buffer = entry * 0.0005;
+
+  const stopLoss = direction === "buy"
+    ? recentLow - buffer
+    : recentHigh + buffer;
+
+  const risk = Math.abs(entry - stopLoss);
+
+  const takeProfit = direction === "buy"
+    ? entry + risk * 2
+    : entry - risk * 2;
+
+  return { entry, stopLoss, takeProfit };
+};
+
     const recentStart = Math.max(2, lastIndex - 12);
     const swingHighs = [];
     const swingLows = [];
