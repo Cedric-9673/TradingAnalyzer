@@ -214,15 +214,53 @@ async function loadFVGForTimeframe(interval) {
   return detectFVG(data.candles, interval);
   }
       
-const fvgLines = [];
+const fvgZonesByTimeframe = new Map();
+const fvgDrawings = [];
+
+function clearFVGDrawings() {
+  while (fvgDrawings.length) {
+    chart.removeSeries(fvgDrawings.pop());
+  }
+}
+
+function drawFVGZone(zone) {
+  const color = zone.type === "bullish" ? "#20b887" : "#ef5350";
+
+  // Une série de zone colore l'espace entre les limites
+  const upperSeries = chart.addLineSeries({
+    color: color,
+    lineWidth: 1,
+    lineStyle: LightweightCharts.LineStyle.Dashed,
+    lastValueVisible: false,
+    priceLineVisible: false,
+    crosshairMarkerVisible: false
+  });
+
+  const lowerSeries = chart.addLineSeries({
+    color: color,
+    lineWidth: 1,
+    lineStyle: LightweightCharts.LineStyle.Dashed,
+    lastValueVisible: false,
+    priceLineVisible: false,
+    crosshairMarkerVisible: false
+  });
+
+  upperSeries.setData([
+    { time: zone.time, value: zone.high },
+    { time: zone.endTime, value: zone.high }
+  ]);
+
+  lowerSeries.setData([
+    { time: zone.time, value: zone.low },
+    { time: zone.endTime, value: zone.low }
+  ]);
+
+  fvgDrawings.push(upperSeries, lowerSeries);
+}
 
 async function refreshFVG() {
-  // Supprimer les anciennes lignes FVG
-  while (fvgLines.length) {
-    candlesSeries.removePriceLine(fvgLines.pop());
-  }
-
-  fvgZones.length = 0;
+  clearFVGDrawings();
+  fvgZonesByTimeframe.clear();
 
   const selected = Array.from(
     document.querySelectorAll(".fvg-tf:checked")
@@ -231,35 +269,28 @@ async function refreshFVG() {
   for (const interval of selected) {
     try {
       const zones = await loadFVGForTimeframe(interval);
-      fvgZones.push(...zones);
+
+      // Prolonger les limites de la zone vers la droite
+      const latestTime = Math.floor(Date.now() / 1000);
+
+      const duration = {
+        "15min": 15 * 60,
+        "1h": 60 * 60,
+        "4h": 4 * 60 * 60,
+        "1day": 24 * 60 * 60
+      }[interval] || 3600;
+
+      const extendedZones = zones.map(zone => ({
+        ...zone,
+        endTime: latestTime + duration * 20
+      }));
+
+      fvgZonesByTimeframe.set(interval, extendedZones);
+
+      extendedZones.forEach(drawFVGZone);
     } catch (error) {
-      console.error(error);
+      console.error("Erreur FVG", interval, error);
     }
-  }
-
-  // Afficher les limites de chaque zone FVG
-  for (const zone of fvgZones) {
-    const color = zone.type === "bullish" ? "#20b887" : "#ef5350";
-
-    const upper = candlesSeries.createPriceLine({
-      price: zone.high,
-      color,
-      lineWidth: 1,
-      lineStyle: LightweightCharts.LineStyle.Dashed,
-      axisLabelVisible: true,
-      title: "FVG " + zone.interval
-    });
-
-    const lower = candlesSeries.createPriceLine({
-      price: zone.low,
-      color,
-      lineWidth: 1,
-      lineStyle: LightweightCharts.LineStyle.Dashed,
-      axisLabelVisible: true,
-      title: "FVG " + zone.interval
-    });
-
-    fvgLines.push(upper, lower);
   }
 }
 
@@ -268,6 +299,7 @@ document.querySelectorAll(".fvg-tf").forEach(input => {
 });
 
 refreshFVG();
+  
 
 </script>
 </body>
