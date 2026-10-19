@@ -13,12 +13,11 @@ header{padding:14px}
 h2{margin:0 0 7px}
 small{color:#9aabc0}
 .controls,.settings{display:flex;flex-wrap:wrap;gap:7px;padding:8px 12px}
-button{background:#253449;color:white;border:0;border-radius:6px;padding:10px 12px}
+button{background:#253449;color:white;border:0;border-radius:6px;padding:10px 12px;cursor:pointer}
 button.active{background:#1686f8}
 #chart{height:58vh;min-height:340px;width:100%}
 .panel{margin:10px;padding:12px;background:#182434;border-radius:8px}
 .panel label{display:inline-flex;align-items:center;gap:6px;margin:7px 12px 7px 0}
-select,input{accent-color:#1686f8}
 #status{padding:10px 14px;color:#b8c9dc;font-size:13px}
 </style>
 </head>
@@ -26,7 +25,7 @@ select,input{accent-color:#1686f8}
 <header>
 <h2>TradingAnalyzer</h2>
 <div><strong>XAU/USD — Or contre dollar</strong></div>
-<small>Graphique personnalisé • Analyse technique</small>
+<small>Graphique personnalisé • Données de marché</small>
 </header>
 
 <div class="controls" id="timeframes">
@@ -39,7 +38,7 @@ select,input{accent-color:#1686f8}
 </div>
 
 <div id="chart"></div>
-<div id="status">Préparation du graphique…</div>
+<div id="status">Connexion aux données du marché…</div>
 
 <div class="panel">
 <strong>Réglages des analyses</strong>
@@ -49,40 +48,112 @@ select,input{accent-color:#1686f8}
 <label><input type="checkbox" id="liquidity" checked> Liquidité</label>
 <label><input type="checkbox" id="levels" checked> Supports / résistances</label>
 </div>
-<small>Les réglages seront reliés aux détections automatiques dans les prochaines étapes.</small>
+<small>Les détections automatiques seront ajoutées ensuite.</small>
 </div>
 
 <script>
-const chartEl=document.getElementById('chart');
-const chart=LightweightCharts.createChart(chartEl,{
-  width:chartEl.clientWidth,
-  height:chartEl.clientHeight,
-  layout:{background:{color:'#101722'},textColor:'#d8e3f0'},
-  grid:{vertLines:{color:'#1d2938'},horzLines:{color:'#1d2938'}},
-  rightPriceScale:{borderColor:'#34445a'},
-  timeScale:{borderColor:'#34445a',timeVisible:true,secondsVisible:false},
-  crosshair:{mode:LightweightCharts.CrosshairMode.Normal}
-});
-const candles=chart.addCandlestickSeries({
-  upColor:'#20b887',downColor:'#ef5350',
-  borderUpColor:'#20b887',borderDownColor:'#ef5350',
-  wickUpColor:'#20b887',wickDownColor:'#ef5350'
-});
-function resizeChart(){
-  chart.applyOptions({width:chartEl.clientWidth,height:chartEl.clientHeight});
-}
-window.addEventListener('resize',resizeChart);
+const API_URL =
+  "https://tradinganalyzer-api.cedricadjaito.workers.dev/";
 
-document.querySelectorAll('[data-tf]').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    document.querySelectorAll('[data-tf]').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('status').textContent=
-      'Unité choisie : '+btn.textContent+'. Connexion des données à préparer.';
+const chartEl = document.getElementById("chart");
+const statusEl = document.getElementById("status");
+
+const chart = LightweightCharts.createChart(chartEl, {
+  width: chartEl.clientWidth,
+  height: chartEl.clientHeight,
+  layout: {
+    background: { color: "#101722" },
+    textColor: "#d8e3f0"
+  },
+  grid: {
+    vertLines: { color: "#1d2938" },
+    horzLines: { color: "#1d2938" }
+  },
+  rightPriceScale: { borderColor: "#34445a" },
+  timeScale: {
+    borderColor: "#34445a",
+    timeVisible: true,
+    secondsVisible: false
+  },
+  crosshair: {
+    mode: LightweightCharts.CrosshairMode.Normal
+  }
+});
+
+const candlesSeries = chart.addCandlestickSeries({
+  upColor: "#20b887",
+  downColor: "#ef5350",
+  borderUpColor: "#20b887",
+  borderDownColor: "#ef5350",
+  wickUpColor: "#20b887",
+  wickDownColor: "#ef5350"
+});
+
+let currentInterval = "5min";
+let loading = false;
+
+async function loadCandles() {
+  if (loading) return;
+  loading = true;
+  statusEl.textContent =
+    "Chargement des bougies XAU/USD en " + currentInterval + "…";
+
+  try {
+    const response = await fetch(
+      API_URL + "?interval=" + encodeURIComponent(currentInterval)
+    );
+    const data = await response.json();
+
+    if (!response.ok || !Array.isArray(data.candles)) {
+      throw new Error(data.error || "Données indisponibles");
+    }
+
+    const validCandles = data.candles.filter(c =>
+      Number.isFinite(c.time) &&
+      Number.isFinite(c.open) &&
+      Number.isFinite(c.high) &&
+      Number.isFinite(c.low) &&
+      Number.isFinite(c.close)
+    );
+
+    candlesSeries.setData(validCandles);
+    chart.timeScale().fitContent();
+
+    statusEl.textContent =
+      "XAU/USD • " + currentInterval +
+      " • " + validCandles.length +
+      " bougies chargées • Actualisation automatique toutes les 60 s.";
+  } catch (error) {
+    statusEl.textContent =
+      "Erreur : " + error.message +
+      ". Vérifie la connexion et les limites de l’API.";
+  } finally {
+    loading = false;
+  }
+}
+
+document.querySelectorAll("[data-tf]").forEach(button => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll("[data-tf]").forEach(b =>
+      b.classList.remove("active")
+    );
+    button.classList.add("active");
+    currentInterval = button.dataset.tf;
+    loadCandles();
   });
 });
-document.getElementById('status').textContent=
-  'Graphique prêt. Les bougies de marché seront connectées à l’étape suivante.';
+
+function resizeChart() {
+  chart.applyOptions({
+    width: chartEl.clientWidth,
+    height: chartEl.clientHeight
+  });
+}
+
+window.addEventListener("resize", resizeChart);
+
+loadCandles();
+setInterval(loadCandles, 60000);
 </script>
 </body>
 </html>
