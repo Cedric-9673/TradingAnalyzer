@@ -227,18 +227,49 @@ function clearFVGDrawings() {
   }
 }
 
-function drawFVGZone(zone) {
-  const color = zone.type === "bullish" ? "#20b887" : "#ef5350";
 
-  // Une série de zone colore l'espace entre les limites
-  const upperSeries = chart.addLineSeries({
-    color: color,
-    lineWidth: 1,
-    lineStyle: LightweightCharts.LineStyle.Dashed,
-    lastValueVisible: false,
-    priceLineVisible: false,
-    crosshairMarkerVisible: false
-  });
+function drawFVGZone(zone) {
+  const overlay = document.getElementById("fvgOverlay");
+  if (!overlay) return;
+
+  const color = zone.type === "bullish" ? "#20b887" : "#ef5350";
+  const chartRect = chartEl.getBoundingClientRect();
+
+  const timeScale = chart.timeScale();
+  const x1 = timeScale.timeToCoordinate(zone.time);
+  const x2 = timeScale.timeToCoordinate(zone.endTime);
+
+  const yHigh = candlesSeries.priceToCoordinate(zone.high);
+  const yLow = candlesSeries.priceToCoordinate(zone.low);
+
+  if (
+    x1 === null || x2 === null ||
+    yHigh === null || yLow === null
+  ) return;
+
+  const left = Math.max(0, Math.min(x1, chartRect.width));
+  const right = Math.min(chartRect.width, Math.max(x2, 0));
+  const top = Math.min(yHigh, yLow);
+  const height = Math.max(1, Math.abs(yLow - yHigh));
+
+  if (right <= left) return;
+
+  const rect = document.createElementNS(
+    "http://www.w3.org/2000/svg", "rect"
+  );
+
+  rect.setAttribute("x", left);
+  rect.setAttribute("y", top);
+  rect.setAttribute("width", right - left);
+  rect.setAttribute("height", height);
+  rect.setAttribute("fill", color);
+  rect.setAttribute("fill-opacity", "0.18");
+  rect.setAttribute("stroke", color);
+  rect.setAttribute("stroke-width", "1");
+
+  overlay.appendChild(rect);
+}
+  );
 
   const lowerSeries = chart.addLineSeries({
     color: color,
