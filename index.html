@@ -214,6 +214,61 @@ async function loadFVGForTimeframe(interval) {
   return detectFVG(data.candles, interval);
   }
       
+const fvgLines = [];
+
+async function refreshFVG() {
+  // Supprimer les anciennes lignes FVG
+  while (fvgLines.length) {
+    candlesSeries.removePriceLine(fvgLines.pop());
+  }
+
+  fvgZones.length = 0;
+
+  const selected = Array.from(
+    document.querySelectorAll(".fvg-tf:checked")
+  ).map(input => input.value);
+
+  for (const interval of selected) {
+    try {
+      const zones = await loadFVGForTimeframe(interval);
+      fvgZones.push(...zones);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  // Afficher les limites de chaque zone FVG
+  for (const zone of fvgZones) {
+    const color = zone.type === "bullish" ? "#20b887" : "#ef5350";
+
+    const upper = candlesSeries.createPriceLine({
+      price: zone.high,
+      color,
+      lineWidth: 1,
+      lineStyle: LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible: true,
+      title: "FVG " + zone.interval
+    });
+
+    const lower = candlesSeries.createPriceLine({
+      price: zone.low,
+      color,
+      lineWidth: 1,
+      lineStyle: LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible: true,
+      title: "FVG " + zone.interval
+    });
+
+    fvgLines.push(upper, lower);
+  }
+}
+
+document.querySelectorAll(".fvg-tf").forEach(input => {
+  input.addEventListener("change", refreshFVG);
+});
+
+refreshFVG();
+
 </script>
 </body>
 </html>
