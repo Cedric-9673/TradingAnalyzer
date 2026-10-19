@@ -39,6 +39,15 @@ input{accent-color:var(--blue)}
 .signal-checks li.pass{color:#8de5c7}.signal-checks li.fail{color:#ffb3b0}
 footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center}
 @media(max-width:480px){main{padding:8px}.panel{padding:10px}button{padding:8px 9px}#chartWrap{height:58vh;min-height:300px}}
+
+.premium-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.premium-price{font-size:25px;font-weight:800;letter-spacing:-.4px}
+.premium-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.premium-feature{background:#0d1727;border:1px solid #26354a;border-radius:9px;padding:9px;font-size:12px}
+.premium-feature:before{content:"✓ ";color:#20b887;font-weight:800}
+.premium-cta{background:#c9a84c;color:#111827;border-color:#e3c76f;font-weight:800}
+.premium-status{font-size:12px;line-height:1.5;color:#f0d994;margin-top:10px}
+@media(max-width:480px){.premium-list{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -67,6 +76,36 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
       <button data-interval="1day">1 jour</button>
     </div>
     <div id="status" role="status">Connexion au graphique…</div>
+  </section>
+
+
+  <section class="panel" id="premiumPanel">
+    <div class="premium-top">
+      <div>
+        <div class="section-title">👑 TradingAnalyzer Premium</div>
+        <div class="note">Accès avancé pour les traders qui souhaitent approfondir leur analyse.</div>
+      </div>
+      <div style="text-align:right">
+        <div class="premium-price">5 000 FCFA</div>
+        <div class="sub">par mois</div>
+      </div>
+    </div>
+    <div class="premium-list">
+      <div class="premium-feature">Analyse BOS / CHoCH</div>
+      <div class="premium-feature">Zones FVG multi-unités</div>
+      <div class="premium-feature">Niveaux Entrée / SL / TP</div>
+      <div class="premium-feature">Outils avancés à venir</div>
+    </div>
+    <div class="row">
+      <label for="paymentMethod">Moyen de paiement souhaité</label>
+      <select id="paymentMethod" style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:9px;max-width:100%">
+        <option value="mtn">MTN Mobile Money</option>
+        <option value="moov">Moov Money</option>
+      </select>
+      <button id="subscribeBtn" class="premium-cta">S’abonner — 5 000 FCFA/mois</button>
+    </div>
+    <div id="premiumStatus" class="premium-status" role="status">Paiement non activé pour le moment : aucune somme ne sera prélevée depuis cet écran. La connexion sécurisée au prestataire sera ajoutée à l’étape suivante.</div>
+    <p class="note">L’abonnement n’est pas encore vendu ni activé automatiquement. Ne communiquez pas votre code PIN Mobile Money dans cette application. Les signaux sont indicatifs et ne garantissent aucun résultat de trading.</p>
   </section>
 
   <section class="panel">
@@ -119,6 +158,18 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
 <script>
 (() => {
   "use strict";
+
+
+  // Interface Premium uniquement : aucun paiement réel n'est déclenché à cette étape.
+  const subscribeBtn = document.getElementById("subscribeBtn");
+  const paymentMethod = document.getElementById("paymentMethod");
+  const premiumStatus = document.getElementById("premiumStatus");
+  if (subscribeBtn && paymentMethod && premiumStatus) {
+    subscribeBtn.addEventListener("click", () => {
+      const provider = paymentMethod.value === "mtn" ? "MTN Mobile Money" : "Moov Money";
+      premiumStatus.textContent = "Le paiement " + provider + " n’est pas encore connecté. Aucun paiement n’a été effectué. À l’étape suivante, nous connecterons le prestataire et la confirmation sécurisée côté serveur.";
+    });
+  }
 
   // Adresse du Worker Cloudflare déjà configuré. La clé API reste côté serveur.
   const API_URL = "https://tradinganalyzer-api.cedricadjaito.workers.dev";
