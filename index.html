@@ -111,7 +111,7 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
     <ul id="signalChecks" class="signal-checks">
       <li>Chargement des confirmations…</li>
     </ul>
-    <p class="note">Un signal n’apparaît que si les conditions simplifiées sont réunies. Ce n’est pas une prédiction ni une garantie de résultat. Confirme toujours le contexte sur le graphique avant toute décision.</p>
+    <p class="note">Les lignes Entrée, SL (rouge) et TP (vert) s’affichent lorsqu’un signal complet est détecté. Le SL utilise l’extrême des 11 dernières bougies avec une marge; le TP vise un ratio théorique de 1:2. Ce sont des niveaux indicatifs, pas une garantie ni un conseil financier.</p>
   </section>
 </main>
 <footer>TradingAnalyzer • Les données dépendent du fournisseur et de votre accès API. Ce site ne donne pas de conseil financier.</footer>
@@ -310,7 +310,6 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
     const closeValues = data.map(c => c.close);
     const fastEma = ema(closeValues, 20);
     const slowEma = ema(closeValues, 50);
-    const enoughData = data.length >= 55;
 
     const showChecks = items => {
       checks.innerHTML = items.map(item =>
@@ -321,48 +320,32 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
       badge.className = "signal-badge " + type;
       badge.textContent = text;
     };
+    const formatPrice = price => Number(price).toFixed(2);
 
-    if (!enoughData || fastEma == null || slowEma == null) {
+    if (data.length < 55 || fastEma == null || slowEma == null) {
       setBadge("neutral", "DONNÉES INSUFFISANTES");
       summary.textContent = "Il faut au moins 55 bougies pour évaluer les conditions.";
-      showChecks([{pass:false,label:"Attendre davantage de données avant de calculer les signaux."}]);
+      showChecks([{pass:false, label:"Attendre davantage de données avant de calculer les signaux."}]);
       return null;
     }
 
     const lastIndex = data.length - 1;
-    const last = data[lastIndex]; 
-const entryPrice = last.close;
-const recentCandles = data.slice(Math.max(0, lastIndex - 10), lastIndex + 1);
-
-const recentLow = Math.min(...recentCandles.map(c => c.low));
-const recentHigh = Math.max(...recentCandles.map(c => c.high));
-
-const calculateRiskLevels = direction => {
-  const entry = entryPrice;
-  const buffer = entry * 0.0005;
-
-  const stopLoss = direction === "buy"
-    ? recentLow - buffer
-    : recentHigh + buffer;
-
-  const risk = Math.abs(entry - stopLoss);
-
-  const takeProfit = direction === "buy"
-    ? entry + risk * 2
-    : entry - risk * 2;
-
-  return { entry, stopLoss, takeProfit };
-};
-
-    const recentStart = Math.max(2, lastIndex - 12);
+    const last = data[lastIndex];
+    const recentCandles = data.slice(Math.max(0, lastIndex - 10), lastIndex + 1);
+    const recentLow = Math.min(...recentCandles.map(c => c.low));
+    const recentHigh = Math.max(...recentCandles.map(c => c.high));
     const swingHighs = [];
     const swingLows = [];
 
     for (let i = 2; i < data.length - 2; i++) {
       if (data[i].high > data[i-1].high && data[i].high > data[i-2].high &&
-          data[i].high >= data[i+1].high && data[i].high >= data[i+2].high) swingHighs.push({index:i, price:data[i].high});
+          data[i].high >= data[i+1].high && data[i].high >= data[i+2].high) {
+        swingHighs.push({index:i, price:data[i].high});
+      }
       if (data[i].low < data[i-1].low && data[i].low < data[i-2].low &&
-          data[i].low <= data[i+1].low && data[i].low <= data[i+2].low) swingLows.push({index:i, price:data[i].low});
+          data[i].low <= data[i+1].low && data[i].low <= data[i+2].low) {
+        swingLows.push({index:i, price:data[i].low});
+      }
     }
 
     const trend = fastEma > slowEma ? "bullish" : fastEma < slowEma ? "bearish" : "neutral";
@@ -374,10 +357,8 @@ const calculateRiskLevels = direction => {
       if (priorLow && data[i].close < priorLow.price) bosDirection = "bearish";
     }
 
-    // Balayage de liquidité : mèche au-delà d'un swing récent, puis clôture de retour dans le niveau.
+    // Balayage de liquidité : mèche au-delà d'un swing, puis clôture de retour dans le niveau.
     let sweepDirection = null;
-    const recentHighs = swingHighs.filter(s => s.index >= lastIndex - 15 && s.index < lastIndex);
-    const recentLows = swingLows.filter(s => s.index >= lastIndex - 15 && s.index < lastIndex);
     for (let i = Math.max(2, lastIndex - 5); i <= lastIndex; i++) {
       const priorHigh = swingHighs.filter(s => s.index < i && s.index >= i - 15).slice(-1)[0];
       const priorLow = swingLows.filter(s => s.index < i && s.index >= i - 15).slice(-1)[0];
@@ -385,11 +366,10 @@ const calculateRiskLevels = direction => {
       if (priorHigh && data[i].high > priorHigh.price && data[i].close < priorHigh.price) sweepDirection = "bearish";
     }
 
-    // Cherche une FVG récente dans l'unité courante, puis vérifie si le prix est revenu dans sa zone.
-    const localZones = detectFVG(data, currentInterval).filter(z => z.time >= data[Math.max(0, lastIndex - 20)].time);
-    const matchingZone = localZones.slice().reverse().find(z =>
-      last.close >= z.low && last.close <= z.high
-    );
+    // Cherche une FVG récente dans l'unité courante, puis vérifie le retour du prix dans sa zone.
+    const localZones = detectFVG(data, currentInterval)
+      .filter(z => z.time >= data[Math.max(0, lastIndex - 20)].time);
+    const matchingZone = localZones.slice().reverse().find(z => last.close >= z.low && last.close <= z.high);
     const fvgDirection = matchingZone ? matchingZone.type : null;
 
     const buyChecks = [
@@ -408,24 +388,52 @@ const calculateRiskLevels = direction => {
     const buyReady = buyChecks.every(item => item.pass);
     const sellReady = sellChecks.every(item => item.pass);
 
-    if (buyReady) {
-      setBadge("buy", "ACHAT POTENTIEL");
-      summary.textContent = "Les 4 confirmations haussières sont réunies sur la dernière bougie.";
-      showChecks(buyChecks);
-      return {time:last.time, position:"belowBar", color:"#20b887", shape:"arrowUp", text:"ACHAT ?"};
-    }
-    if (sellReady) {
-      setBadge("sell", "VENTE POTENTIELLE");
-      summary.textContent = "Les 4 confirmations baissières sont réunies sur la dernière bougie.";
-      showChecks(sellChecks);
-      return {time:last.time, position:"aboveBar", color:"#ef5350", shape:"arrowDown", text:"VENTE ?"};
+    if (!buyReady && !sellReady) {
+      setBadge("neutral", "PAS DE SIGNAL COMPLET");
+      summary.textContent = "Aucun signal complet pour l’instant. Les critères manquants sont listés ci-dessous.";
+      showChecks(trend === "bearish" ? sellChecks : buyChecks);
+      return null;
     }
 
-    setBadge("neutral", "PAS DE SIGNAL COMPLET");
-    summary.textContent = "Aucun signal complet pour l’instant. Les critères manquants sont listés ci-dessous.";
-    const directionChecks = trend === "bearish" ? sellChecks : buyChecks;
-    showChecks(directionChecks);
-    return null;
+    const direction = buyReady ? "buy" : "sell";
+    const entry = last.close;
+    // SL derrière l'extrême récent avec une petite marge; TP vise 2 fois le risque.
+    const buffer = Math.max(entry * 0.0005, 0.01);
+    const stopLoss = direction === "buy" ? recentLow - buffer : recentHigh + buffer;
+    const risk = Math.abs(entry - stopLoss);
+    if (!Number.isFinite(risk) || risk <= 0) {
+      setBadge("neutral", "NIVEAUX INDISPONIBLES");
+      summary.textContent = "Impossible de calculer un risque valide avec les dernières bougies.";
+      showChecks(buyReady ? buyChecks : sellChecks);
+      return null;
+    }
+    const takeProfit = direction === "buy" ? entry + risk * 2 : entry - risk * 2;
+
+    if (direction === "buy") {
+      setBadge("buy", "ACHAT POTENTIEL");
+      showChecks(buyChecks);
+    } else {
+      setBadge("sell", "VENTE POTENTIELLE");
+      showChecks(sellChecks);
+    }
+
+    summary.innerHTML =
+      `Entrée indicative : <strong>${formatPrice(entry)}</strong><br>` +
+      `Stop Loss (SL) : <strong>${formatPrice(stopLoss)}</strong><br>` +
+      `Take Profit (TP) : <strong>${formatPrice(takeProfit)}</strong><br>` +
+      `<span class="note">Ratio risque/rendement théorique : 1:2 · Unités : ${currentInterval}</span>`;
+
+    return {
+      time: last.time,
+      position: direction === "buy" ? "belowBar" : "aboveBar",
+      color: direction === "buy" ? "#20b887" : "#ef5350",
+      shape: direction === "buy" ? "arrowUp" : "arrowDown",
+      text: direction === "buy" ? "ACHAT ?" : "VENTE ?",
+      direction,
+      entry,
+      stopLoss,
+      takeProfit
+    };
   }
 
   function calculateAnalysis(data) {
@@ -449,47 +457,46 @@ const calculateRiskLevels = direction => {
         const sl = swingLows.find(s => s.index === i-2);
         if (sh) { lastHigh = sh.high; highBroken = false; }
         if (sl) { lastLow = sl.low; lowBroken = false; }
-        
-if (lastHigh != null && !highBroken && data[i].close > lastHigh) {
-  const label = trend === "bearish" ? "CHoCH ↑" : "BOS ↑";
-  markers.push({
-    time: data[i].time,
-    position: "belowBar",
-    color: "#20b887",
-    shape: "arrowUp",
-    text: label
-  });
-
-  analysisLines.push(
-    addPriceLevel(lastHigh, label, "#20b887")
-  );
-
-  trend = "bullish";
-  highBroken = true;
-
-} else if (lastLow != null && !lowBroken && data[i].close < lastLow) {
-  const label = trend === "bullish" ? "CHoCH ↓" : "BOS ↓";
-  markers.push({
-    time: data[i].time,
-    position: "aboveBar",
-    color: "#ef5350",
-    shape: "arrowDown",
-    text: label
-  });
-
-  analysisLines.push(
-    addPriceLevel(lastLow, label, "#ef5350")
-  );
-
-  trend = "bearish";
-  lowBroken = true;
-}
-
+        if (lastHigh != null && !highBroken && data[i].close > lastHigh) {
+          markers.push({ time:data[i].time, position:"belowBar", color:"#20b887", shape:"arrowUp", text:trend==="bearish"?"CHoCH ↑":"BOS ↑" });
+          trend = "bullish"; highBroken = true;
+        } else if (lastLow != null && !lowBroken && data[i].close < lastLow) {
+          markers.push({ time:data[i].time, position:"aboveBar", color:"#ef5350", shape:"arrowDown", text:trend==="bullish"?"CHoCH ↓":"BOS ↓" });
+          trend = "bearish"; lowBroken = true;
         }
       }
     }
     const signalMarker = detectSignal(data);
-    if (signalMarker) markers.push(signalMarker);
+    if (signalMarker) {
+      // Ne transmettre au graphique que les propriétés attendues pour un marqueur.
+      markers.push({
+        time: signalMarker.time,
+        position: signalMarker.position,
+        color: signalMarker.color,
+        shape: signalMarker.shape,
+        text: signalMarker.text
+      });
+
+      // Lignes de niveaux pour le signal complet le plus récent.
+      analysisLines.push(addPriceLevel(
+        signalMarker.entry,
+        "Entrée " + signalMarker.entry.toFixed(2),
+        "#64a8ff",
+        LightweightCharts.LineStyle.Solid
+      ));
+      analysisLines.push(addPriceLevel(
+        signalMarker.stopLoss,
+        "SL " + signalMarker.stopLoss.toFixed(2),
+        "#ef5350",
+        LightweightCharts.LineStyle.Dashed
+      ));
+      analysisLines.push(addPriceLevel(
+        signalMarker.takeProfit,
+        "TP " + signalMarker.takeProfit.toFixed(2),
+        "#20b887",
+        LightweightCharts.LineStyle.Dashed
+      ));
+    }
     candlesSeries.setMarkers(markers.sort((a,b)=>a.time-b.time));
 
     if (document.getElementById("showSR").checked) {
