@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -82,8 +82,8 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
     <div class="checks">
       <label><input type="checkbox" id="showFVG" checked> FVG</label>
       <label><input type="checkbox" id="showBOS" checked> BOS / CHoCH</label>
-      <label><input type="checkbox" id="showLiquidity"> Liquidités</label>
-      <label><input type="checkbox" id="showSR"> Supports / résistances</label>
+      <label><input type="checkbox" id="showLiquidity" checked> Liquidités</label>
+      <label><input type="checkbox" id="showSR" checked> Supports / résistances</label>
     </div>
     <div class="section-title" style="margin-top:14px">Unités FVG à afficher</div>
     <div class="checks">
@@ -95,7 +95,7 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
     <div class="row" style="margin-top:14px">
       <button id="refreshBtn">Actualiser maintenant</button>
     </div>
-    <p class="note">Les marqueurs BOS/CHoCH et les niveaux sont des détections automatiques simplifiées. Vérifiez toujours la structure du marché avant toute décision.</p>
+    <p class="note">Les FVG, BOS/CHoCH, liquidités et supports/résistances sont détectés automatiquement de façon simplifiée. Décochez une case pour masquer un tracé. Vérifiez toujours le contexte avant toute décision.</p>
   </section>
 
   <section class="panel" id="signalsPanel">
@@ -417,115 +417,6 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
     }
 
     if (document.getElementById("showBOS").checked) {
-      let lastHigh = null, lastLow = null, trend = "neutral";
-      for (let i = 2; i < data.length; i++) {
-        const sh = swingHighs.find(s => s.index === i-1);
-        const sl = swingLows.find(s => s.index === i-1);
-        if (sh) lastHigh = sh.high;
-        if (sl) lastLow = sl.low;
-        if (lastHigh != null && data[i].close > lastHigh) {
-          markers.push({ time:data[i].time, position:"belowBar", color:"#20b887", shape:"arrowUp", text:trend==="bearish"?"CHoCH ↑":"BOS ↑" });
-          trend = "bullish"; lastHigh = null;
-        } else if (lastLow != null && data[i].close < lastLow) {
-          markers.push({ time:data[i].time, position:"aboveBar", color:"#ef5350", shape:"arrowDown", text:trend==="bullish"?"CHoCH ↓":"BOS ↓" });
-          trend = "bearish"; lastLow = null;
-        }
-      }
-    }
-    const signalMarker = detectSignal(data);
-    if (signalMarker) markers.push(signalMarker);
-    candlesSeries.setMarkers(markers.sort((a,b)=>a.time-b.time));
-
-    if (document.getElementById("showSR").checked) {
-      const recentHighs = swingHighs.slice(-3), recentLows = swingLows.slice(-3);
-      recentHighs.forEach(s => analysisLines.push(addPriceLevel(s.high, "Résistance", "#ef8d55")));
-      recentLows.forEach(s => analysisLines.push(addPriceLevel(s.low, "Support", "#64a8ff")));
-    }
-    if (document.getElementById("showLiquidity").checked) {
-      const highs = swingHighs.slice(-2), lows = swingLows.slice(-2);
-      highs.forEach(s => analysisLines.push(addPriceLevel(s.high, "Liquidité ↑", "#b28cff", LightweightCharts.LineStyle.Dotted)));
-      lows.forEach(s => analysisLines.push(addPriceLevel(s.low, "Liquidité ↓", "#b28cff", LightweightCharts.LineStyle.Dotted)));
-    }
-  }
-
-  async function refreshFVG() {
-    if (!document.getElementById("showFVG").checked) {
-      drawFVGOverlay();
-      return;
-    }
-    const selected = Array.from(document.querySelectorAll(".fvg-tf:checked")).map(el => el.value);
-    const updated = new Map();
-    for (const interval of selected) {
-      try {
-        const data = await fetchCandles(interval);
-        updated.set(interval, detectFVG(data, interval).slice(-35));
-      } catch (err) {
-        console.warn("FVG " + interval, err);
-      }
-    }
-    fvgZonesByTimeframe = updated;
-    drawFVGOverlay();
-  }
-
-  async function loadCandles(interval = currentInterval) {
-    const myRequest = ++requestNumber;
-    currentInterval = interval;
-    setStatus("Chargement des bougies " + interval + "…");
-    try {
-      const fresh = await fetchCandles(interval);
-      if (myRequest !== requestNumber) return;
-      candles = fresh;
-      candlesSeries.setData(candles);
-      const last = candles[candles.length - 1];
-      priceEl.textContent = last.close.toFixed(2);
-      priceEl.className = last.close >= last.open ? "price-green" : "price-red";
-      calculateAnalysis(candles);
-      chart.timeScale().fitContent();
-      setStatus("Données chargées · " + candles.length + " bougies · unité " + interval + " · mise à jour automatique chaque minute.");
-      await refreshFVG();
-      drawFVGOverlay();
-    } catch (err) {
-      if (myRequest !== requestNumber) return;
-      setStatus("Impossible de charger les données : " + (err.message || "erreur inconnue") + ". Vérifiez la connexion et le Worker Cloudflare.", true);
-      // Ne pas effacer le dernier graphique valide en cas d'échec réseau.
-    }
-  }
-
-  document.querySelectorAll("#timeframes button").forEach(button => {
-    button.addEventListener("click", () => {
-      document.querySelectorAll("#timeframes button").forEach(b => b.classList.toggle("active", b === button));
-      loadCandles(button.dataset.interval);
-    });
-  });
-
-  document.getElementById("refreshBtn").addEventListener("click", () => loadCandles(currentInterval));
-  ["showFVG","showBOS","showLiquidity","showSR"].forEach(id => {
-    document.getElementById(id).addEventListener("change", () => {
-      if (id === "showFVG") drawFVGOverlay();
-      if (candles.length) calculateAnalysis(candles);
-      drawFVGOverlay();
-    });
-  });
-  document.querySelectorAll(".fvg-tf").forEach(input => input.addEventListener("change", refreshFVG));
-
-  chart.timeScale().subscribeVisibleTimeRangeChange(drawFVGOverlay);
-  chart.subscribeCrosshairMove(() => {});
-  if ("ResizeObserver" in window) {
-    resizeObserver = new ResizeObserver(() => {
-      chart.applyOptions({ width: chartWrap.clientWidth, height: chartWrap.clientHeight });
-      drawFVGOverlay();
-    });
-    resizeObserver.observe(chartWrap);
-  } else {
-    window.addEventListener("resize", () => {
-      chart.applyOptions({ width: chartWrap.clientWidth, height: chartWrap.clientHeight });
-      drawFVGOverlay();
-    });
-  }
-
-  loadCandles(currentInterval);
-  refreshTimer = window.setInterval(() => loadCandles(currentInterval), 60000);
-})();
-</script>
-</body>
-</html>
+      // Une cassure est marquée une seule fois par niveau pivot, pour éviter les répétitions.
+      let structureTrend = "neutral";
+      let lastBrokenH
