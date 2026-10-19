@@ -31,6 +31,12 @@ input{accent-color:var(--blue)}
 .note{font-size:12px;line-height:1.5;color:var(--muted)}
 #lastPrice{font-weight:700;font-size:18px}
 .price-green{color:var(--green)}.price-red{color:var(--red)}
+.signal-badge{font-size:12px;font-weight:800;padding:7px 10px;border-radius:8px;border:1px solid var(--line);white-space:nowrap}
+.signal-badge.neutral{color:var(--muted);background:#182335}
+.signal-badge.buy{color:#9cf0d2;background:#123b32;border-color:#24765d}
+.signal-badge.sell{color:#ffc0bd;background:#442020;border-color:#8b3d3a}
+.signal-checks{margin:10px 0 0;padding-left:20px;color:#d5dfec;font-size:13px;line-height:1.7}
+.signal-checks li.pass{color:#8de5c7}.signal-checks li.fail{color:#ffb3b0}
 footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center}
 @media(max-width:480px){main{padding:8px}.panel{padding:10px}button{padding:8px 9px}#chartWrap{height:58vh;min-height:300px}}
 </style>
@@ -90,6 +96,21 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
       <button id="refreshBtn">Actualiser maintenant</button>
     </div>
     <p class="note">Les marqueurs BOS/CHoCH et les niveaux sont des détections automatiques simplifiées. Vérifiez toujours la structure du marché avant toute décision.</p>
+  </section>
+
+  <section class="panel" id="signalsPanel">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <div class="section-title">Signaux de confluence</div>
+        <div class="note">Tendance + BOS/CHoCH + balayage de liquidité + retour dans une FVG</div>
+      </div>
+      <div id="signalBadge" class="signal-badge neutral">ANALYSE EN COURS</div>
+    </div>
+    <div id="signalSummary" style="margin-top:10px;font-weight:600">Analyse des dernières bougies…</div>
+    <ul id="signalChecks" class="signal-checks">
+      <li>Chargement des confirmations…</li>
+    </ul>
+    <p class="note">Un signal n’apparaît que si les conditions simplifiées sont réunies. Ce n’est pas une prédiction ni une garantie de résultat. Confirme toujours le contexte sur le graphique avant toute décision.</p>
   </section>
 </main>
 <footer>TradingAnalyzer • Les données dépendent du fournisseur et de votre accès API. Ce site ne donne pas de conseil financier.</footer>
@@ -273,6 +294,116 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
     analysisLines = [];
   }
 
+  function ema(values, period) {
+    if (values.length < period) return null;
+    const k = 2 / (period + 1);
+    let value = values.slice(0, period).reduce((sum, n) => sum + n, 0) / period;
+    for (let i = period; i < values.length; i++) value = values[i] * k + value * (1 - k);
+    return value;
+  }
+
+  function detectSignal(data) {
+    const badge = document.getElementById("signalBadge");
+    const summary = document.getElementById("signalSummary");
+    const checks = document.getElementById("signalChecks");
+    const closeValues = data.map(c => c.close);
+    const fastEma = ema(closeValues, 20);
+    const slowEma = ema(closeValues, 50);
+    const enoughData = data.length >= 55;
+
+    const showChecks = items => {
+      checks.innerHTML = items.map(item =>
+        `<li class="${item.pass ? "pass" : "fail"}">${item.pass ? "✓" : "○"} ${item.label}</li>`
+      ).join("");
+    };
+    const setBadge = (type, text) => {
+      badge.className = "signal-badge " + type;
+      badge.textContent = text;
+    };
+
+    if (!enoughData || fastEma == null || slowEma == null) {
+      setBadge("neutral", "DONNÉES INSUFFISANTES");
+      summary.textContent = "Il faut au moins 55 bougies pour évaluer les conditions.";
+      showChecks([{pass:false,label:"Attendre davantage de données avant de calculer les signaux."}]);
+      return null;
+    }
+
+    const lastIndex = data.length - 1;
+    const last = data[lastIndex];
+    const recentStart = Math.max(2, lastIndex - 12);
+    const swingHighs = [];
+    const swingLows = [];
+
+    for (let i = 2; i < data.length - 2; i++) {
+      if (data[i].high > data[i-1].high && data[i].high > data[i-2].high &&
+          data[i].high >= data[i+1].high && data[i].high >= data[i+2].high) swingHighs.push({index:i, price:data[i].high});
+      if (data[i].low < data[i-1].low && data[i].low < data[i-2].low &&
+          data[i].low <= data[i+1].low && data[i].low <= data[i+2].low) swingLows.push({index:i, price:data[i].low});
+    }
+
+    const trend = fastEma > slowEma ? "bullish" : fastEma < slowEma ? "bearish" : "neutral";
+    let bosDirection = null;
+    for (let i = Math.max(2, lastIndex - 8); i <= lastIndex; i++) {
+      const priorHigh = swingHighs.filter(s => s.index < i).slice(-1)[0];
+      const priorLow = swingLows.filter(s => s.index < i).slice(-1)[0];
+      if (priorHigh && data[i].close > priorHigh.price) bosDirection = "bullish";
+      if (priorLow && data[i].close < priorLow.price) bosDirection = "bearish";
+    }
+
+    // Balayage de liquidité : mèche au-delà d'un swing récent, puis clôture de retour dans le niveau.
+    let sweepDirection = null;
+    const recentHighs = swingHighs.filter(s => s.index >= lastIndex - 15 && s.index < lastIndex);
+    const recentLows = swingLows.filter(s => s.index >= lastIndex - 15 && s.index < lastIndex);
+    for (let i = Math.max(2, lastIndex - 5); i <= lastIndex; i++) {
+      const priorHigh = swingHighs.filter(s => s.index < i && s.index >= i - 15).slice(-1)[0];
+      const priorLow = swingLows.filter(s => s.index < i && s.index >= i - 15).slice(-1)[0];
+      if (priorLow && data[i].low < priorLow.price && data[i].close > priorLow.price) sweepDirection = "bullish";
+      if (priorHigh && data[i].high > priorHigh.price && data[i].close < priorHigh.price) sweepDirection = "bearish";
+    }
+
+    // Cherche une FVG récente dans l'unité courante, puis vérifie si le prix est revenu dans sa zone.
+    const localZones = detectFVG(data, currentInterval).filter(z => z.time >= data[Math.max(0, lastIndex - 20)].time);
+    const matchingZone = localZones.slice().reverse().find(z =>
+      last.close >= z.low && last.close <= z.high
+    );
+    const fvgDirection = matchingZone ? matchingZone.type : null;
+
+    const buyChecks = [
+      {pass:trend === "bullish", label:"Tendance haussière (EMA 20 au-dessus de l’EMA 50)"},
+      {pass:bosDirection === "bullish", label:"BOS haussier récent"},
+      {pass:sweepDirection === "bullish", label:"Balayage de liquidité sous un creux puis clôture au-dessus"},
+      {pass:fvgDirection === "bullish", label:"Retour du prix dans une FVG haussière récente"}
+    ];
+    const sellChecks = [
+      {pass:trend === "bearish", label:"Tendance baissière (EMA 20 sous l’EMA 50)"},
+      {pass:bosDirection === "bearish", label:"BOS baissier récent"},
+      {pass:sweepDirection === "bearish", label:"Balayage de liquidité au-dessus d’un sommet puis clôture en dessous"},
+      {pass:fvgDirection === "bearish", label:"Retour du prix dans une FVG baissière récente"}
+    ];
+
+    const buyReady = buyChecks.every(item => item.pass);
+    const sellReady = sellChecks.every(item => item.pass);
+
+    if (buyReady) {
+      setBadge("buy", "ACHAT POTENTIEL");
+      summary.textContent = "Les 4 confirmations haussières sont réunies sur la dernière bougie.";
+      showChecks(buyChecks);
+      return {time:last.time, position:"belowBar", color:"#20b887", shape:"arrowUp", text:"ACHAT ?"};
+    }
+    if (sellReady) {
+      setBadge("sell", "VENTE POTENTIELLE");
+      summary.textContent = "Les 4 confirmations baissières sont réunies sur la dernière bougie.";
+      showChecks(sellChecks);
+      return {time:last.time, position:"aboveBar", color:"#ef5350", shape:"arrowDown", text:"VENTE ?"};
+    }
+
+    setBadge("neutral", "PAS DE SIGNAL COMPLET");
+    summary.textContent = "Aucun signal complet pour l’instant. Les critères manquants sont listés ci-dessous.";
+    const directionChecks = trend === "bearish" ? sellChecks : buyChecks;
+    showChecks(directionChecks);
+    return null;
+  }
+
   function calculateAnalysis(data) {
     candlesSeries.setMarkers([]);
     clearAnalysisLines();
@@ -301,6 +432,8 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
         }
       }
     }
+    const signalMarker = detectSignal(data);
+    if (signalMarker) markers.push(signalMarker);
     candlesSeries.setMarkers(markers.sort((a,b)=>a.time-b.time));
 
     if (document.getElementById("showSR").checked) {
@@ -395,4 +528,4 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
 })();
 </script>
 </body>
-  </html>
+</html>
