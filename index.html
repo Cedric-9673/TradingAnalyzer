@@ -426,12 +426,42 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
         const sl = swingLows.find(s => s.index === i-2);
         if (sh) { lastHigh = sh.high; highBroken = false; }
         if (sl) { lastLow = sl.low; lowBroken = false; }
-        if (lastHigh != null && !highBroken && data[i].close > lastHigh) {
-          markers.push({ time:data[i].time, position:"belowBar", color:"#20b887", shape:"arrowUp", text:trend==="bearish"?"CHoCH ↑":"BOS ↑" });
-          trend = "bullish"; highBroken = true;
-        } else if (lastLow != null && !lowBroken && data[i].close < lastLow) {
-          markers.push({ time:data[i].time, position:"aboveBar", color:"#ef5350", shape:"arrowDown", text:trend==="bullish"?"CHoCH ↓":"BOS ↓" });
-          trend = "bearish"; lowBroken = true;
+        
+if (lastHigh != null && !highBroken && data[i].close > lastHigh) {
+  const label = trend === "bearish" ? "CHoCH ↑" : "BOS ↑";
+  markers.push({
+    time: data[i].time,
+    position: "belowBar",
+    color: "#20b887",
+    shape: "arrowUp",
+    text: label
+  });
+
+  analysisLines.push(
+    addPriceLevel(lastHigh, label, "#20b887")
+  );
+
+  trend = "bullish";
+  highBroken = true;
+
+} else if (lastLow != null && !lowBroken && data[i].close < lastLow) {
+  const label = trend === "bullish" ? "CHoCH ↓" : "BOS ↓";
+  markers.push({
+    time: data[i].time,
+    position: "aboveBar",
+    color: "#ef5350",
+    shape: "arrowDown",
+    text: label
+  });
+
+  analysisLines.push(
+    addPriceLevel(lastLow, label, "#ef5350")
+  );
+
+  trend = "bearish";
+  lowBroken = true;
+}
+
         }
       }
     }
