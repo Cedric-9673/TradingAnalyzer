@@ -1,358 +1,398 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TradingAnalyzer — XAU/USD</title>
 <script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
 <style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#121c2d;--line:#26354a;--text:#eaf0f8;--muted:#9aaac0;--green:#20b887;--red:#ef5350;--blue:#64a8ff}
 *{box-sizing:border-box}
-body{margin:0;background:#101722;color:#edf3fa;font-family:Arial,sans-serif}
-header{padding:14px}
-h2{margin:0 0 7px}
-small{color:#9aabc0}
-.controls,.settings{display:flex;flex-wrap:wrap;gap:7px;padding:8px 12px}
-button{background:#253449;color:white;border:0;border-radius:6px;padding:10px 12px;cursor:pointer}
-button.active{background:#1686f8}
-#chart{height:58vh;min-height:340px;width:100%}
-.panel{margin:10px;padding:12px;background:#182434;border-radius:8px}
-.panel label{display:inline-flex;align-items:center;gap:6px;margin:7px 12px 7px 0}
-#status{padding:10px 14px;color:#b8c9dc;font-size:13px}
+body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,-apple-system,Segoe UI,sans-serif}
+header{padding:14px 14px 10px;background:#101a2a;border-bottom:1px solid var(--line)}
+h1{font-size:20px;margin:0 0 5px}
+.sub{font-size:12px;color:var(--muted)}
+main{padding:12px;max-width:1200px;margin:auto}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.row + .row{margin-top:10px}
+button{background:#1c2a40;border:1px solid #34465f;color:var(--text);border-radius:8px;padding:9px 11px;font-weight:600;cursor:pointer}
+button.active{background:#1d4770;border-color:var(--blue)}
+button:disabled{opacity:.5}
+#status{font-size:12px;color:var(--muted);margin-top:9px;overflow-wrap:anywhere}
+#status.error{color:#ff9898}
+#chartWrap{position:relative;width:100%;height: min(62vh,520px);min-height:320px;overflow:hidden;border-radius:8px}
+#chart{position:absolute;inset:0;width:100%;height:100%}
+#fvgOverlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3;overflow:hidden}
+.checks{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
+label{font-size:13px;color:#d5dfec;display:inline-flex;align-items:center;gap:5px}
+input{accent-color:var(--blue)}
+.section-title{font-weight:700;font-size:14px}
+.note{font-size:12px;line-height:1.5;color:var(--muted)}
+#lastPrice{font-weight:700;font-size:18px}
+.price-green{color:var(--green)}.price-red{color:var(--red)}
+footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center}
+@media(max-width:480px){main{padding:8px}.panel{padding:10px}button{padding:8px 9px}#chartWrap{height:58vh;min-height:300px}}
 </style>
 </head>
 <body>
 <header>
-<h2>TradingAnalyzer</h2>
-<div><strong>XAU/USD — Or contre dollar</strong></div>
-<small>Graphique personnalisé • Données de marché</small>
+  <h1>TradingAnalyzer</h1>
+  <div class="sub">Analyse technique • XAU/USD • Outil d’aide à la décision</div>
 </header>
+<main>
+  <section class="panel">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <div class="sub">MARCHÉ</div>
+        <div class="section-title">XAU/USD · Or / dollar américain</div>
+      </div>
+      <div style="text-align:right">
+        <div class="sub">DERNIER COURS</div>
+        <div id="lastPrice">—</div>
+      </div>
+    </div>
+    <div class="row" id="timeframes" aria-label="Unités de temps">
+      <button data-interval="1min">1 min</button>
+      <button data-interval="5min" class="active">5 min</button>
+      <button data-interval="15min">15 min</button>
+      <button data-interval="1h">1 h</button>
+      <button data-interval="4h">4 h</button>
+      <button data-interval="1day">1 jour</button>
+    </div>
+    <div id="status" role="status">Connexion au graphique…</div>
+  </section>
 
-<div class="controls" id="timeframes">
-<button data-tf="1min">1 min</button>
-<button data-tf="5min" class="active">5 min</button>
-<button data-tf="15min">15 min</button>
-<button data-tf="1h">1 h</button>
-<button data-tf="4h">4 h</button>
-<button data-tf="1day">1 jour</button>
-</div>
+  <section class="panel">
+    <div id="chartWrap">
+      <div id="chart"></div>
+      <svg id="fvgOverlay" aria-hidden="true"></svg>
+    </div>
+    <div class="note" style="margin-top:8px">Les rectangles FVG sont indicatifs. Faites défiler ou zoomez le graphique pour examiner les zones récentes.</div>
+  </section>
 
-<div id="chart" style="position:relative;">
-  <svg id="fvgOverlay"
-       style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;">
-  </svg>
-</div>
-<div id="status">Connexion aux données du marché…</div>
-
-<div class="panel">
-<strong>Réglages des analyses</strong><div class="settings">
-  <strong>Unités FVG à afficher :</strong>
-  <label><input type="checkbox" class="fvg-tf" value="15min" checked> 15 min</label>
-  <label><input type="checkbox" class="fvg-tf" value="1h" checked> 1 h</label>
-  <label><input type="checkbox" class="fvg-tf" value="4h" checked> 4 h</label>
-  <label><input type="checkbox" class="fvg-tf" value="1day"> 1 jour</label>
-</div>
-<div class="settings">
-<label><input type="checkbox" id="fvg" checked> FVG</label>
-<label><input type="checkbox" id="structure" checked> BOS / CHoCH</label>
-<label><input type="checkbox" id="liquidity" checked> Liquidité</label>
-<label><input type="checkbox" id="levels" checked> Supports / résistances</label>
-</div>
-<small>Les détections automatiques seront ajoutées ensuite.</small>
-</div>
+  <section class="panel">
+    <div class="section-title">Éléments d’analyse à afficher</div>
+    <div class="checks">
+      <label><input type="checkbox" id="showFVG" checked> FVG</label>
+      <label><input type="checkbox" id="showBOS" checked> BOS / CHoCH</label>
+      <label><input type="checkbox" id="showLiquidity"> Liquidités</label>
+      <label><input type="checkbox" id="showSR"> Supports / résistances</label>
+    </div>
+    <div class="section-title" style="margin-top:14px">Unités FVG à afficher</div>
+    <div class="checks">
+      <label><input type="checkbox" class="fvg-tf" value="15min" checked> 15 min</label>
+      <label><input type="checkbox" class="fvg-tf" value="1h" checked> 1 h</label>
+      <label><input type="checkbox" class="fvg-tf" value="4h" checked> 4 h</label>
+      <label><input type="checkbox" class="fvg-tf" value="1day"> 1 jour</label>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button id="refreshBtn">Actualiser maintenant</button>
+    </div>
+    <p class="note">Les marqueurs BOS/CHoCH et les niveaux sont des détections automatiques simplifiées. Vérifiez toujours la structure du marché avant toute décision.</p>
+  </section>
+</main>
+<footer>TradingAnalyzer • Les données dépendent du fournisseur et de votre accès API. Ce site ne donne pas de conseil financier.</footer>
 
 <script>
-const API_URL =
-  "https://tradinganalyzer-api.cedricadjaito.workers.dev/";
+(() => {
+  "use strict";
 
-const chartEl = document.getElementById("chart");
-const statusEl = document.getElementById("status");
+  // Adresse du Worker Cloudflare déjà configuré. La clé API reste côté serveur.
+  const API_URL = "https://tradinganalyzer-api.cedricadjaito.workers.dev";
+  const INTERVALS = ["1min", "5min", "15min", "1h", "4h", "1day"];
+  const FVG_INTERVALS = ["15min", "1h", "4h", "1day"];
+  const statusEl = document.getElementById("status");
+  const chartEl = document.getElementById("chart");
+  const chartWrap = document.getElementById("chartWrap");
+  const overlay = document.getElementById("fvgOverlay");
+  const priceEl = document.getElementById("lastPrice");
 
-const chart = LightweightCharts.createChart(chartEl, {
-  width: chartEl.clientWidth,
-  height: chartEl.clientHeight,
-  layout: {
-    background: { color: "#101722" },
-    textColor: "#d8e3f0"
-  },
-  grid: {
-    vertLines: { color: "#1d2938" },
-    horzLines: { color: "#1d2938" }
-  },
-  rightPriceScale: { borderColor: "#34445a" },
-  timeScale: {
-    borderColor: "#34445a",
-    timeVisible: true,
-    secondsVisible: false
-  },
-  crosshair: {
-    mode: LightweightCharts.CrosshairMode.Normal
+  let currentInterval = "5min";
+  let candles = [];
+  let fvgZonesByTimeframe = new Map();
+  let refreshTimer = null;
+  let requestNumber = 0;
+  let resizeObserver = null;
+
+  if (!window.LightweightCharts) {
+    statusEl.textContent = "Erreur : la bibliothèque du graphique n’a pas pu être chargée. Vérifiez votre connexion Internet.";
+    statusEl.classList.add("error");
+    return;
   }
-});
 
-const candlesSeries = chart.addCandlestickSeries({
-  upColor: "#20b887",
-  downColor: "#ef5350",
-  borderUpColor: "#20b887",
-  borderDownColor: "#ef5350",
-  wickUpColor: "#20b887",
-  wickDownColor: "#ef5350"
-});
+  const chart = LightweightCharts.createChart(chartEl, {
+    width: chartEl.clientWidth || 600,
+    height: chartEl.clientHeight || 400,
+    layout: { background: { type: "solid", color: "#0b1220" }, textColor: "#d9e3f0" },
+    grid: { vertLines: { color: "#1a2638" }, horzLines: { color: "#1a2638" } },
+    rightPriceScale: { borderColor: "#26354a" },
+    timeScale: { borderColor: "#26354a", timeVisible: true, secondsVisible: false, rightOffset: 5 },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    handleScroll: true,
+    handleScale: true
+  });
 
-let currentInterval = "5min";
-let loading = false;
+  const candlesSeries = chart.addCandlestickSeries({
+    upColor: "#20b887",
+    downColor: "#ef5350",
+    borderUpColor: "#20b887",
+    borderDownColor: "#ef5350",
+    wickUpColor: "#20b887",
+    wickDownColor: "#ef5350",
+    priceLineVisible: true,
+    lastValueVisible: true
+  });
 
-async function loadCandles() {
-  if (loading) return;
-  loading = true;
-  statusEl.textContent =
-    "Chargement des bougies XAU/USD en " + currentInterval + "…";
+  function setStatus(message, isError = false) {
+    statusEl.textContent = message;
+    statusEl.classList.toggle("error", isError);
+  }
 
-  try {
-    const response = await fetch(
-      API_URL + "?interval=" + encodeURIComponent(currentInterval)
-    );
+  function normaliseCandles(input) {
+    if (!Array.isArray(input)) return [];
+    return input.map(c => {
+      let t = c.time;
+      if (typeof t === "string") {
+        const parsed = Date.parse(t);
+        t = Number.isFinite(parsed) ? Math.floor(parsed / 1000) : NaN;
+      } else if (typeof t === "number" && t > 100000000000) {
+        t = Math.floor(t / 1000);
+      }
+      return {
+        time: t,
+        open: Number(c.open),
+        high: Number(c.high),
+        low: Number(c.low),
+        close: Number(c.close)
+      };
+    }).filter(c => Number.isFinite(c.time) && [c.open,c.high,c.low,c.close].every(Number.isFinite))
+      .sort((a,b) => a.time - b.time)
+      .filter((c,i,arr) => i === 0 || c.time !== arr[i-1].time);
+  }
+
+  async function fetchCandles(interval) {
+    const url = API_URL + "/?interval=" + encodeURIComponent(interval);
+    const response = await fetch(url, { cache: "no-store" });
     const data = await response.json();
-
-    if (!response.ok || !Array.isArray(data.candles)) {
-      throw new Error(data.error || "Données indisponibles");
-    }
-
-    const validCandles = data.candles.filter(c =>
-      Number.isFinite(c.time) &&
-      Number.isFinite(c.open) &&
-      Number.isFinite(c.high) &&
-      Number.isFinite(c.low) &&
-      Number.isFinite(c.close)
-    );
-
-    candlesSeries.setData(validCandles);
-    chart.timeScale().fitContent();
-
-    statusEl.textContent =
-      "XAU/USD • " + currentInterval +
-      " • " + validCandles.length +
-      " bougies chargées • Actualisation automatique toutes les 60 s.";
-  } catch (error) {
-    statusEl.textContent =
-      "Erreur : " + error.message +
-      ". Vérifie la connexion et les limites de l’API.";
-  } finally {
-    loading = false;
+    if (!response.ok) throw new Error(data.error || "Erreur serveur (" + response.status + ")");
+    const parsed = normaliseCandles(data.candles);
+    if (!parsed.length) throw new Error(data.error || "Le serveur n’a renvoyé aucune bougie.");
+    return parsed;
   }
-}
 
-document.querySelectorAll("[data-tf]").forEach(button => {
-  button.addEventListener("click", () => {
-    document.querySelectorAll("[data-tf]").forEach(b =>
-      b.classList.remove("active")
-    );
-    button.classList.add("active");
-    currentInterval = button.dataset.tf;
-    loadCandles();
-  });
-});
-
-function resizeChart() {
-  chart.applyOptions({
-    width: chartEl.clientWidth,
-    height: chartEl.clientHeight
-  });
-}
-
-window.addEventListener("resize", resizeChart);
-
-loadCandles();
-setInterval(loadCandles, 60000);
-const fvgTimeframes = ["15min", "1h", "4h", "1day"];
-const fvgZones = [];
-
-function detectFVG(candles, interval) {
-  const zones = [];
-
-  for (let i = 2; i < candles.length; i++) {
-    const first = candles[i - 2];
-    const third = candles[i];
-
-    // FVG haussier : le plus bas de la 3e bougie
-    // reste au-dessus du plus haut de la 1re.
-    if (third.low > first.high) {
-      zones.push({
-        type: "bullish",
-        interval,
-        low: first.high,
-        high: third.low,
-        time: third.time,
-        mitigated: false
-      });
+  function detectFVG(data, interval) {
+    const zones = [];
+    for (let i = 2; i < data.length; i++) {
+      const first = data[i - 2], third = data[i];
+      // FVG haussier : le plus bas de la troisième bougie dépasse le plus haut de la première.
+      if (third.low > first.high) {
+        zones.push({ type: "bullish", interval, low: first.high, high: third.low, time: third.time });
+      }
+      // FVG baissier : le plus haut de la troisième bougie est sous le plus bas de la première.
+      if (third.high < first.low) {
+        zones.push({ type: "bearish", interval, low: third.high, high: first.low, time: third.time });
+      }
     }
+    return zones;
+  }
 
-    // FVG baissier : le plus haut de la 3e bougie
-    // reste sous le plus bas de la 1re.
-    if (third.high < first.low) {
-      zones.push({
-        type: "bearish",
-        interval,
-        low: third.high,
-        high: first.low,
-        time: third.time,
-        mitigated: false
-      });
+  function intervalSeconds(interval) {
+    return ({ "1min":60, "5min":300, "15min":900, "1h":3600, "4h":14400, "1day":86400 })[interval] || 300;
+  }
+
+  function drawFVGOverlay() {
+    overlay.innerHTML = "";
+    if (!document.getElementById("showFVG").checked || !candles.length) return;
+
+    const width = chartWrap.clientWidth;
+    const height = chartWrap.clientHeight;
+    overlay.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    overlay.setAttribute("preserveAspectRatio", "none");
+
+    // Le timeScale donne des coordonnées relatives à la zone de tracé; on tient compte de l'axe de prix droit.
+    const plotWidth = chart.timeScale().width();
+    const plotLeft = Math.max(0, width - plotWidth);
+    const visible = chart.timeScale().getVisibleRange();
+    if (!visible) return;
+    const from = typeof visible.from === "number" ? visible.from : visible.from.timestamp;
+    const to = typeof visible.to === "number" ? visible.to : visible.to.timestamp;
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return;
+
+    const selected = new Set(Array.from(document.querySelectorAll(".fvg-tf:checked")).map(el => el.value));
+    for (const [interval, zones] of fvgZonesByTimeframe.entries()) {
+      if (!selected.has(interval)) continue;
+      const step = intervalSeconds(interval);
+      // Limiter les zones aux bougies récentes visibles; éviter les coordonnées futures inexistantes.
+      for (const zone of zones) {
+        const zoneStart = zone.time;
+        const zoneEnd = zone.time + step * 3;
+        if (zoneEnd < from || zoneStart > to) continue;
+
+        const x1c = chart.timeScale().timeToCoordinate(zoneStart);
+        const x2c = chart.timeScale().timeToCoordinate(Math.min(zoneEnd, to));
+        const y1 = candlesSeries.priceToCoordinate(zone.high);
+        const y2 = candlesSeries.priceToCoordinate(zone.low);
+        if (y1 == null || y2 == null) continue;
+
+        let left = x1c == null ? plotLeft : plotLeft + x1c;
+        let right = x2c == null ? plotLeft + plotWidth : plotLeft + x2c;
+        left = Math.max(plotLeft, Math.min(width, left));
+        right = Math.max(plotLeft, Math.min(width, right));
+        if (right - left < 2) right = Math.min(width, left + Math.max(8, plotWidth / Math.max(candles.length, 1) * 3));
+        const top = Math.max(0, Math.min(height, Math.min(y1, y2)));
+        const bottom = Math.max(0, Math.min(height, Math.max(y1, y2)));
+        if (right <= left || bottom <= top) continue;
+
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        const color = zone.type === "bullish" ? "#20b887" : "#ef5350";
+        rect.setAttribute("x", String(left));
+        rect.setAttribute("y", String(top));
+        rect.setAttribute("width", String(right-left));
+        rect.setAttribute("height", String(Math.max(2,bottom-top)));
+        rect.setAttribute("fill", color);
+        rect.setAttribute("fill-opacity", "0.18");
+        rect.setAttribute("stroke", color);
+        rect.setAttribute("stroke-width", "1");
+        rect.setAttribute("data-interval", interval);
+        overlay.appendChild(rect);
+      }
     }
   }
 
-  return zones;
-}
-
-async function loadFVGForTimeframe(interval) {
-  const response = await fetch(
-    API_URL + "?interval=" + encodeURIComponent(interval)
-  );
-
-  const data = await response.json();
-
-  if (!response.ok || !Array.isArray(data.candles)) {
-    throw new Error("Impossible de charger les FVG " + interval);
+  function addPriceLevel(price, title, color, style = LightweightCharts.LineStyle.Dashed) {
+    return candlesSeries.createPriceLine({
+      price, title, color, lineWidth: 1, lineStyle: style,
+      axisLabelVisible: true, lineVisible: true
+    });
   }
 
-  return detectFVG(data.candles, interval);
+  let analysisLines = [];
+  function clearAnalysisLines() {
+    analysisLines.forEach(line => { try { candlesSeries.removePriceLine(line); } catch (_) {} });
+    analysisLines = [];
   }
-      
-const fvgZonesByTimeframe = new Map();
-const fvgDrawings = [];
 
-function clearFVGDrawings() {
-  while (fvgDrawings.length) {
-    chart.removeSeries(fvgDrawings.pop());
-  }
-}
+  function calculateAnalysis(data) {
+    candlesSeries.setMarkers([]);
+    clearAnalysisLines();
+    if (!data.length) return;
+    const markers = [];
+    const swingHighs = [], swingLows = [];
+    for (let i = 2; i < data.length - 2; i++) {
+      const c = data[i];
+      if (c.high > data[i-1].high && c.high > data[i-2].high && c.high >= data[i+1].high && c.high >= data[i+2].high) swingHighs.push({index:i, ...c});
+      if (c.low < data[i-1].low && c.low < data[i-2].low && c.low <= data[i+1].low && c.low <= data[i+2].low) swingLows.push({index:i, ...c});
+    }
 
+    if (document.getElementById("showBOS").checked) {
+      let lastHigh = null, lastLow = null, trend = "neutral";
+      for (let i = 2; i < data.length; i++) {
+        const sh = swingHighs.find(s => s.index === i-1);
+        const sl = swingLows.find(s => s.index === i-1);
+        if (sh) lastHigh = sh.high;
+        if (sl) lastLow = sl.low;
+        if (lastHigh != null && data[i].close > lastHigh) {
+          markers.push({ time:data[i].time, position:"belowBar", color:"#20b887", shape:"arrowUp", text:trend==="bearish"?"CHoCH ↑":"BOS ↑" });
+          trend = "bullish"; lastHigh = null;
+        } else if (lastLow != null && data[i].close < lastLow) {
+          markers.push({ time:data[i].time, position:"aboveBar", color:"#ef5350", shape:"arrowDown", text:trend==="bullish"?"CHoCH ↓":"BOS ↓" });
+          trend = "bearish"; lastLow = null;
+        }
+      }
+    }
+    candlesSeries.setMarkers(markers.sort((a,b)=>a.time-b.time));
 
-function drawFVGZone(zone) {
-  const overlay = document.getElementById("fvgOverlay");
-  if (!overlay) return;
-
-  const color = zone.type === "bullish" ? "#20b887" : "#ef5350";
-  const chartRect = chartEl.getBoundingClientRect();
-
-  const timeScale = chart.timeScale();
-  const x1 = timeScale.timeToCoordinate(zone.time);
-  const x2 = timeScale.timeToCoordinate(zone.endTime);
-
-  const yHigh = candlesSeries.priceToCoordinate(zone.high);
-  const yLow = candlesSeries.priceToCoordinate(zone.low);
-
-  if (
-    x1 === null || x2 === null ||
-    yHigh === null || yLow === null
-  ) return;
-
-  const left = Math.max(0, Math.min(x1, chartRect.width));
-  const right = Math.min(chartRect.width, Math.max(x2, 0));
-  const top = Math.min(yHigh, yLow);
-  const height = Math.max(1, Math.abs(yLow - yHigh));
-
-  if (right <= left) return;
-
-  const rect = document.createElementNS(
-    "http://www.w3.org/2000/svg", "rect"
-  );
-
-  rect.setAttribute("x", left);
-  rect.setAttribute("y", top);
-  rect.setAttribute("width", right - left);
-  rect.setAttribute("height", height);
-  rect.setAttribute("fill", color);
-  rect.setAttribute("fill-opacity", "0.18");
-  rect.setAttribute("stroke", color);
-  rect.setAttribute("stroke-width", "1");
-
-  overlay.appendChild(rect);
-}
-  );
-
-  const lowerSeries = chart.addLineSeries({
-    color: color,
-    lineWidth: 1,
-    lineStyle: LightweightCharts.LineStyle.Dashed,
-    lastValueVisible: false,
-    priceLineVisible: false,
-    crosshairMarkerVisible: false
-  });
-
-  upperSeries.setData([
-    { time: zone.time, value: zone.high },
-    { time: zone.endTime, value: zone.high }
-  ]);
-
-  lowerSeries.setData([
-    { time: zone.time, value: zone.low },
-    { time: zone.endTime, value: zone.low }
-  ]);
-
-  fvgDrawings.push(upperSeries, lowerSeries);
-}
-
-async function refreshFVG() {
-  clearFVGDrawings();
-  fvgZonesByTimeframe.clear();
-function redrawFVGOverlay() {
-  const overlay = document.getElementById("fvgOverlay");
-  if (!overlay) return;
-
-  overlay.innerHTML = "";
-
-  for (const zones of fvgZonesByTimeframe.values()) {
-    for (const zone of zones) {
-      drawFVGZone(zone);
+    if (document.getElementById("showSR").checked) {
+      const recentHighs = swingHighs.slice(-3), recentLows = swingLows.slice(-3);
+      recentHighs.forEach(s => analysisLines.push(addPriceLevel(s.high, "Résistance", "#ef8d55")));
+      recentLows.forEach(s => analysisLines.push(addPriceLevel(s.low, "Support", "#64a8ff")));
+    }
+    if (document.getElementById("showLiquidity").checked) {
+      const highs = swingHighs.slice(-2), lows = swingLows.slice(-2);
+      highs.forEach(s => analysisLines.push(addPriceLevel(s.high, "Liquidité ↑", "#b28cff", LightweightCharts.LineStyle.Dotted)));
+      lows.forEach(s => analysisLines.push(addPriceLevel(s.low, "Liquidité ↓", "#b28cff", LightweightCharts.LineStyle.Dotted)));
     }
   }
-}
 
-chart.timeScale().subscribeVisibleTimeRangeChange(redrawFVGOverlay);
+  async function refreshFVG() {
+    if (!document.getElementById("showFVG").checked) {
+      drawFVGOverlay();
+      return;
+    }
+    const selected = Array.from(document.querySelectorAll(".fvg-tf:checked")).map(el => el.value);
+    const updated = new Map();
+    for (const interval of selected) {
+      try {
+        const data = await fetchCandles(interval);
+        updated.set(interval, detectFVG(data, interval).slice(-35));
+      } catch (err) {
+        console.warn("FVG " + interval, err);
+      }
+    }
+    fvgZonesByTimeframe = updated;
+    drawFVGOverlay();
+  }
 
-window.addEventListener("resize", redrawFVGOverlay);
-  
-
-  const selected = Array.from(
-    document.querySelectorAll(".fvg-tf:checked")
-  ).map(input => input.value);
-
-  for (const interval of selected) {
+  async function loadCandles(interval = currentInterval) {
+    const myRequest = ++requestNumber;
+    currentInterval = interval;
+    setStatus("Chargement des bougies " + interval + "…");
     try {
-      const zones = await loadFVGForTimeframe(interval);
-
-      // Prolonger les limites de la zone vers la droite
-      const latestTime = Math.floor(Date.now() / 1000);
-
-      const duration = {
-        "15min": 15 * 60,
-        "1h": 60 * 60,
-        "4h": 4 * 60 * 60,
-        "1day": 24 * 60 * 60
-      }[interval] || 3600;
-
-      const extendedZones = zones.map(zone => ({
-        ...zone,
-        endTime: latestTime + duration * 20
-      }));
-
-      fvgZonesByTimeframe.set(interval, extendedZones);
-
-      extendedZones.forEach(drawFVGZone);
-    } catch (error) {
-      console.error("Erreur FVG", interval, error);
+      const fresh = await fetchCandles(interval);
+      if (myRequest !== requestNumber) return;
+      candles = fresh;
+      candlesSeries.setData(candles);
+      const last = candles[candles.length - 1];
+      priceEl.textContent = last.close.toFixed(2);
+      priceEl.className = last.close >= last.open ? "price-green" : "price-red";
+      calculateAnalysis(candles);
+      chart.timeScale().fitContent();
+      setStatus("Données chargées · " + candles.length + " bougies · unité " + interval + " · mise à jour automatique chaque minute.");
+      await refreshFVG();
+      drawFVGOverlay();
+    } catch (err) {
+      if (myRequest !== requestNumber) return;
+      setStatus("Impossible de charger les données : " + (err.message || "erreur inconnue") + ". Vérifiez la connexion et le Worker Cloudflare.", true);
+      // Ne pas effacer le dernier graphique valide en cas d'échec réseau.
     }
   }
-}
 
-document.querySelectorAll(".fvg-tf").forEach(input => {
-  input.addEventListener("change", refreshFVG);
-});
+  document.querySelectorAll("#timeframes button").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll("#timeframes button").forEach(b => b.classList.toggle("active", b === button));
+      loadCandles(button.dataset.interval);
+    });
+  });
 
-refreshFVG();
-  
+  document.getElementById("refreshBtn").addEventListener("click", () => loadCandles(currentInterval));
+  ["showFVG","showBOS","showLiquidity","showSR"].forEach(id => {
+    document.getElementById(id).addEventListener("change", () => {
+      if (id === "showFVG") drawFVGOverlay();
+      if (candles.length) calculateAnalysis(candles);
+      drawFVGOverlay();
+    });
+  });
+  document.querySelectorAll(".fvg-tf").forEach(input => input.addEventListener("change", refreshFVG));
 
+  chart.timeScale().subscribeVisibleTimeRangeChange(drawFVGOverlay);
+  chart.subscribeCrosshairMove(() => {});
+  if ("ResizeObserver" in window) {
+    resizeObserver = new ResizeObserver(() => {
+      chart.applyOptions({ width: chartWrap.clientWidth, height: chartWrap.clientHeight });
+      drawFVGOverlay();
+    });
+    resizeObserver.observe(chartWrap);
+  } else {
+    window.addEventListener("resize", () => {
+      chart.applyOptions({ width: chartWrap.clientWidth, height: chartWrap.clientHeight });
+      drawFVGOverlay();
+    });
+  }
+
+  loadCandles(currentInterval);
+  refreshTimer = window.setInterval(() => loadCandles(currentInterval), 60000);
+})();
 </script>
 </body>
-</html>
+  </html>
