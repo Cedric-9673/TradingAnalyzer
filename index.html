@@ -296,6 +296,23 @@ function drawFVGZone(zone) {
 async function refreshFVG() {
   clearFVGDrawings();
   fvgZonesByTimeframe.clear();
+function redrawFVGOverlay() {
+  const overlay = document.getElementById("fvgOverlay");
+  if (!overlay) return;
+
+  overlay.innerHTML = "";
+
+  for (const zones of fvgZonesByTimeframe.values()) {
+    for (const zone of zones) {
+      drawFVGZone(zone);
+    }
+  }
+}
+
+chart.timeScale().subscribeVisibleTimeRangeChange(redrawFVGOverlay);
+
+window.addEventListener("resize", redrawFVGOverlay);
+  
 
   const selected = Array.from(
     document.querySelectorAll(".fvg-tf:checked")
