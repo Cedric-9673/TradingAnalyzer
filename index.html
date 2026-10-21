@@ -83,29 +83,52 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
     <div class="premium-top">
       <div>
         <div class="section-title">👑 TradingAnalyzer Premium</div>
-        <div class="note">Accès avancé pour les traders qui souhaitent approfondir leur analyse.</div>
+        <div class="note">Accès avancé après vérification manuelle du paiement.</div>
       </div>
       <div style="text-align:right">
-        <div class="premium-price">5 000 FCFA</div>
-        <div class="sub">par mois</div>
+        <div class="premium-price">Dès 2 500 FCFA</div>
+        <div class="sub">Choisissez votre forfait</div>
       </div>
     </div>
     <div class="premium-list">
       <div class="premium-feature">Analyse BOS / CHoCH</div>
       <div class="premium-feature">Zones FVG multi-unités</div>
       <div class="premium-feature">Niveaux Entrée / SL / TP</div>
-      <div class="premium-feature">Outils avancés à venir</div>
+      <div class="premium-feature">Outils avancés</div>
     </div>
     <div class="row">
-      <label for="paymentMethod">Moyen de paiement souhaité</label>
-      <select id="paymentMethod" style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:9px;max-width:100%">
-        <option value="mtn">MTN Mobile Money</option>
-        <option value="moov">Moov Money</option>
-      </select>
-      <button id="subscribeBtn" class="premium-cta">S’abonner — 5 000 FCFA/mois</button>
+      <label for="customerName">Nom complet</label>
+      <input id="customerName" type="text" maxlength="100" autocomplete="name" placeholder="Votre nom" required style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">
     </div>
-    <div id="premiumStatus" class="premium-status" role="status">Paiement non activé pour le moment : aucune somme ne sera prélevée depuis cet écran. La connexion sécurisée au prestataire sera ajoutée à l’étape suivante.</div>
-    <p class="note">L’abonnement n’est pas encore vendu ni activé automatiquement. Ne communiquez pas votre code PIN Mobile Money dans cette application. Les signaux sont indicatifs et ne garantissent aucun résultat de trading.</p>
+    <div class="row">
+      <label for="customerPhone">Votre numéro Mobile Money</label>
+      <input id="customerPhone" type="tel" maxlength="25" autocomplete="tel" placeholder="Numéro utilisé pour le paiement" required style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">
+    </div>
+    <div class="row">
+      <label for="planSelect">Forfait</label>
+      <select id="planSelect" style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">
+        <option value="7_days">7 jours — 2 500 FCFA</option>
+        <option value="30_days" selected>30 jours — 5 000 FCFA</option>
+        <option value="90_days">90 jours — 10 000 FCFA</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="paymentMethod">Moyen de paiement</label>
+      <select id="paymentMethod" style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">
+        <option value="MTN MoMo">MTN Mobile Money</option>
+        <option value="Moov Money">Moov Money</option>
+      </select>
+    </div>
+    <div id="paymentInstructions" class="note" style="margin-top:10px">Chargement des informations de paiement…</div>
+    <div class="row">
+      <label for="transactionReference">Référence de transaction</label>
+      <input id="transactionReference" type="text" maxlength="120" placeholder="Référence indiquée sur votre reçu" required style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">
+    </div>
+    <div class="row">
+      <button id="subscribeBtn" class="premium-cta" style="width:100%">Envoyer ma demande de paiement</button>
+    </div>
+    <div id="premiumStatus" class="premium-status" role="status" aria-live="polite">Votre demande sera examinée manuellement. L’envoi du formulaire ne confirme pas le paiement et n’active pas automatiquement l’abonnement.</div>
+    <p class="note">Ne communiquez jamais votre code PIN Mobile Money. Effectuez le transfert avant d’envoyer la demande. L’accès sera activé uniquement après vérification du paiement. Les signaux sont indicatifs et ne garantissent aucun résultat de trading.</p>
   </section>
 
   <section class="panel">
@@ -160,15 +183,95 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
   "use strict";
 
 
-  // Interface Premium uniquement : aucun paiement réel n'est déclenché à cette étape.
+  // Formulaire Premium : envoie une demande au Worker de paiement.
+  // Le transfert reste vérifié manuellement ; aucun paiement n'est prélevé ici.
+  const PAYMENT_API = "https://tradinganalyzer-paymentd5eb.cedricadjaito.workers.dev";
   const subscribeBtn = document.getElementById("subscribeBtn");
   const paymentMethod = document.getElementById("paymentMethod");
+  const planSelect = document.getElementById("planSelect");
   const premiumStatus = document.getElementById("premiumStatus");
-  if (subscribeBtn && paymentMethod && premiumStatus) {
-    subscribeBtn.addEventListener("click", () => {
-      const provider = paymentMethod.value === "mtn" ? "MTN Mobile Money" : "Moov Money";
-      premiumStatus.textContent = "Le paiement " + provider + " n’est pas encore connecté. Aucun paiement n’a été effectué. À l’étape suivante, nous connecterons le prestataire et la confirmation sécurisée côté serveur.";
+  const paymentInstructions = document.getElementById("paymentInstructions");
+  let paymentInfo = null;
+  const planAmounts = { "7_days": 2500, "30_days": 5000, "90_days": 10000 };
+
+  function updatePaymentInstructions() {
+    if (!paymentInstructions) return;
+    const method = paymentMethod.value;
+    const recipient = paymentInfo && paymentInfo.methods ? paymentInfo.methods[method] : null;
+    const amount = planAmounts[planSelect.value];
+    if (!recipient || !amount) {
+      paymentInstructions.textContent = "Le numéro de réception est indisponible. Réessayez plus tard.";
+      return;
+    }
+    paymentInstructions.textContent = "Transférez " + amount.toLocaleString("fr-FR") +
+      " FCFA via " + method + " au numéro " + recipient +
+      ". Après le transfert, saisissez la référence figurant sur votre reçu.";
+  }
+
+  async function loadPaymentInfo() {
+    try {
+      const response = await fetch(PAYMENT_API + "/api/payment-info", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok || !data.methods || !data.plans) {
+        throw new Error("Informations de paiement indisponibles.");
+      }
+      paymentInfo = data;
+      updatePaymentInstructions();
+    } catch (error) {
+      paymentInstructions.textContent = "Impossible de charger les informations de paiement. Vérifiez la connexion et réessayez.";
+    }
+  }
+
+  if (subscribeBtn && paymentMethod && planSelect && premiumStatus && paymentInstructions) {
+    paymentMethod.addEventListener("change", updatePaymentInstructions);
+    planSelect.addEventListener("change", updatePaymentInstructions);
+
+    subscribeBtn.addEventListener("click", async () => {
+      const customerName = document.getElementById("customerName").value.trim();
+      const customerPhone = document.getElementById("customerPhone").value.trim();
+      const transactionReference = document.getElementById("transactionReference").value.trim();
+      if (!customerName || !customerPhone || !transactionReference) {
+        premiumStatus.textContent = "Veuillez renseigner votre nom, votre numéro de téléphone et la référence de transaction.";
+        return;
+      }
+      if (!paymentInfo || !paymentInfo.methods || !paymentInfo.methods[paymentMethod.value]) {
+        premiumStatus.textContent = "Les informations de paiement ne sont pas disponibles. Réessayez plus tard.";
+        return;
+      }
+      if (!planAmounts[planSelect.value]) {
+        premiumStatus.textContent = "Veuillez choisir un forfait valide.";
+        return;
+      }
+      const amount = planAmounts[planSelect.value];
+      if (!window.confirm("Confirmez-vous avoir transféré " + amount.toLocaleString("fr-FR") +
+        " FCFA via " + paymentMethod.value + " ?")) return;
+
+      subscribeBtn.disabled = true;
+      premiumStatus.textContent = "Envoi de la demande en cours…";
+      try {
+        const response = await fetch(PAYMENT_API + "/api/payments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customer_name: customerName,
+            customer_phone: customerPhone,
+            payment_method: paymentMethod.value,
+            plan: planSelect.value,
+            transaction_reference: transactionReference
+          })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Le serveur a refusé la demande (" + response.status + ").");
+        premiumStatus.textContent = "Demande envoyée. Elle doit être vérifiée manuellement. Votre abonnement n’est pas encore activé. Conservez votre reçu.";
+      } catch (error) {
+        premiumStatus.textContent = "La demande n’a pas pu être confirmée : " +
+          (error.message || "erreur de connexion") +
+          ". Vérifiez votre connexion. Si vous réessayez, évitez d’envoyer une demande en double.";
+      } finally {
+        subscribeBtn.disabled = false;
+      }
     });
+    loadPaymentInfo();
   }
 
   // Adresse du Worker Cloudflare déjà configuré. La clé API reste côté serveur.
