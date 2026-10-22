@@ -756,4 +756,15 @@ footer{padding:6px 14px 18px;color:var(--muted);font-size:11px;text-align:center
 })();
 </script>
 </body>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./service-worker.js")
+        .catch((error) => {
+          console.error("Erreur service worker :", error);
+        });
+    });
+  }
+</script>
+  
 </html>
