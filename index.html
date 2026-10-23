@@ -953,9 +953,10 @@ refreshTimer = window.setInterval(() => {
   if (!document.getElementById("analysisPage").classList.contains("active")) return;
   loadCandles(currentInterval);
 }, 60000);
-})();
-</script>
-  if ("serviceWorker" in navigator) {
+  })();
+  </script>
+  <script>
+    if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("./service-worker.js")
         .catch((error) => console.error("Erreur service worker :", error));
