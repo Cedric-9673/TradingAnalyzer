@@ -613,7 +613,7 @@ footer{padding:14px 14px 22px;color:var(--muted);font-size:11px;text-align:cente
 
   function drawFVGOverlay() {
     overlay.innerHTML = "";
-    if (!document.getElementById("showFVG").checked || !candles.length) return;
+    if (!premium || !document.getElementById("showFVG").checked || !candles.length) return;
 
     const width = chartWrap.clientWidth;
     const height = chartWrap.clientHeight;
