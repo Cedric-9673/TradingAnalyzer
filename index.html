@@ -581,40 +581,8 @@ footer{padding:14px 14px 22px;color:var(--muted);font-size:11px;text-align:cente
   }
 
   async function fetchCandles(interval) {
-    const url = API_URL + "/?interval=" + encodeURIComponent(interval);  let premium = false;
-  const CODE_KEY = "ta_access_code";
-
-  function showLockedSignals() {
-    const badge = document.getElementById("signalBadge");
-    badge.className = "signal-badge neutral";
-    badge.textContent = "PREMIUM";
-    document.getElementById("signalSummary").textContent = "Signaux Entrée / SL / TP réservés aux abonnés Premium.";
-    document.getElementById("signalChecks").innerHTML = "<li>Entrez votre code d’accès pour débloquer FVG, BOS/CHoCH, liquidités, supports/résistances et signaux.</li>";
-    const t = document.getElementById("analysisToolStatus");
-    if (t) t.textContent = "Outils avancés verrouillés : abonnement Premium requis.";
-  }
-
-  async function applyCode(code) {
-    const msg = document.getElementById("accessMsg");
-    try {
-      const response = await fetch(PAYMENT_API + "/api/access/check?code=" + encodeURIComponent(code), { cache: "no-store" });
-      const r = await response.json();
-      if (r.valid) {
-        premium = true;
-        try { localStorage.setItem(CODE_KEY, code); } catch (_) {}
-        msg.textContent = "Accès Premium actif jusqu’au " + new Date(r.expires_at).toLocaleDateString("fr-FR") + ".";
-      } else {
-        premium = false;
-        try { localStorage.removeItem(CODE_KEY); } catch (_) {}
-        msg.textContent = r.expired ? "Ce code a expiré." : "Code invalide.";
-      }
-    } catch (e) {
-      msg.textContent = "Vérification impossible. Réessayez.";
-      return;
-    }
-    if (candles.length) calculateAnalysis(candles);
-    refreshFVG();
-  }
+    const url = API_URL + "/?interval=" + encodeURIComponent(interval); 
+  
     const response = await fetch(url, { cache: "no-store" });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Erreur serveur (" + response.status + ")");
