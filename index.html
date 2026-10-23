@@ -948,10 +948,13 @@ footer{padding:14px 14px 22px;color:var(--muted);font-size:11px;text-align:cente
   }
 
   loadCandles(currentInterval);
-  refreshTimer = window.setInterval(() => loadCandles(currentInterval), 60000);
+refreshTimer = window.setInterval(() => {
+  if (document.hidden) return;
+  if (!document.getElementById("analysisPage").classList.contains("active")) return;
+  loadCandles(currentInterval);
+}, 60000);
 })();
 </script>
-<script>
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("./service-worker.js")
