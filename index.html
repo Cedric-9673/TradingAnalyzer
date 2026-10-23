@@ -199,6 +199,15 @@ footer{padding:14px 14px 22px;color:var(--muted);font-size:11px;text-align:cente
   </section>
 
   <section class="page" id="analysisPage" aria-labelledby="analysisTitle">
+<section class="panel" id="accessPanel">
+  <div class="section-title">👑 Accès Premium</div>
+  <div class="note">Entrez le code reçu après validation de votre paiement.</div>
+  <div class="row">
+    <input id="accessCode" type="text" maxlength="20" placeholder="TA-XXXXX-XXXXX" autocomplete="off" style="flex:1;background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px">
+    <button id="accessBtn" class="premium-cta" type="button">Activer</button>
+  </div>
+  <div id="accessMsg" class="note" role="status"></div>
+</section>
     <div class="page-heading"><h2 id="analysisTitle">Analyse graphique</h2><p>Suivez le marché XAU/USD et utilisez les outils techniques disponibles. Les analyses automatiques restent indicatives.</p></div>
   <section class="panel">
     <div class="row" style="justify-content:space-between">
