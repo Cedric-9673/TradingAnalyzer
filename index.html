@@ -191,6 +191,10 @@ footer{padding:14px 14px 22px;color:var(--muted);font-size:11px;text-align:cente
       <input id="transactionReference" type="text" maxlength="120" placeholder="Référence indiquée sur votre reçu" required style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">
     </div>
     <div class="row">
+      <div class="row">
+  <label for="referralCode">Code de parrainage (facultatif)</label>
+  <input id="referralCode" type="text" maxlength="12" placeholder="PA-XXXXX" autocomplete="off" style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">
+      </div>
       <button id="subscribeBtn" class="premium-cta" style="width:100%">Envoyer ma demande de paiement</button>
     </div>
     <div id="premiumStatus" class="premium-status" role="status" aria-live="polite">Votre demande sera examinée manuellement. L’envoi du formulaire ne confirme pas le paiement et n’active pas automatiquement l’abonnement.</div>
