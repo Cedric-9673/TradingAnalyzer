@@ -460,7 +460,8 @@ footer{padding:14px 14px 22px;color:var(--muted);font-size:11px;text-align:cente
             customer_phone: customerPhone,
             payment_method: paymentMethod.value,
             plan: planSelect.value,
-            transaction_reference: transactionReference
+                        transaction_reference: transactionReference,
+            referral_code: document.getElementById("referralCode").value.trim().toUpperCase()
           })
         });
         const result = await response.json().catch(() => ({}));
@@ -500,7 +501,7 @@ footer{padding:14px 14px 22px;color:var(--muted);font-size:11px;text-align:cente
       if (r.valid) {
         premium = true;
         try { localStorage.setItem(CODE_KEY, code); } catch (_) {}
-        msg.textContent = "Accès Premium actif jusqu’au " + new Date(r.expires_at).toLocaleDateString("fr-FR") + ".";
+        msg.textContent = "Accès Premium actif jusqu’au " + new Date(r.expires_at).toLocaleDateString("fr-FR") + "."; if (r.referral_code) msg.textContent += " Votre code de parrainage : " + r.referral_code + " (7 jours offerts pour chaque ami qui s’abonne avec ce code).";
       } else {
         premium = false;
         try { localStorage.removeItem(CODE_KEY); } catch (_) {}
