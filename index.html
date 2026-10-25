@@ -1,1225 +1,1019 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b1220">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<title>TradingAnalyzer — Analyse du marché de l’or</title>
-<link rel="manifest" href="./manifest.json">
-<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
-<style>
-:root{color-scheme:dark;--bg:#0b1220;--panel:#121c2d;--line:#26354a;--text:#eaf0f8;--muted:#9aaac0;--green:#20b887;--red:#ef5350;--blue:#64a8ff;--gold:#c9a84c}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,-apple-system,Segoe UI,sans-serif}
-header.app-header{padding:12px 14px;background:#101a2a;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;box-shadow:0 6px 20px #0002}
-h1{font-size:20px;margin:0 0 4px}
-h2{font-size:22px;line-height:1.2;margin:0 0 10px}
-h3{font-size:16px;margin:0 0 8px}
-.sub{font-size:12px;color:var(--muted)}
-main{padding:12px;max-width:1200px;margin:auto;min-height:60vh}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
-.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.row + .row{margin-top:10px}
-button{background:#1c2a40;border:1px solid #34465f;color:var(--text);border-radius:8px;padding:9px 11px;font-weight:600;cursor:pointer}
-button.active{background:#1d4770;border-color:var(--blue)}
-button:disabled{opacity:.5}
-button:focus-visible,a:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
-a{color:#8fc3ff;text-decoration:none}
-a:hover{text-decoration:underline}
-#status{font-size:12px;color:var(--muted);margin-top:9px;overflow-wrap:anywhere}
-#status.error{color:#ff9898}
-#chartWrap{position:relative;width:100%;height:min(62vh,520px);min-height:320px;overflow:hidden;border-radius:8px}
-#chart{position:absolute;inset:0;width:100%;height:100%}
-#fvgOverlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3;overflow:hidden}
-.checks{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
-label{font-size:13px;color:#d5dfec;display:inline-flex;align-items:center;gap:5px}
-input{accent-color:var(--blue)}
-.section-title{font-weight:700;font-size:14px}
-.note{font-size:12px;line-height:1.5;color:var(--muted)}
-#lastPrice{font-weight:700;font-size:18px}
-.price-green{color:var(--green)}.price-red{color:var(--red)}
-.signal-badge{font-size:12px;font-weight:800;padding:7px 10px;border-radius:8px;border:1px solid var(--line);white-space:nowrap}
-.signal-badge.neutral{color:var(--muted);background:#182335}
-.signal-badge.buy{color:#9cf0d2;background:#123b32;border-color:#24765d}
-.signal-badge.sell{color:#ffc0bd;background:#442020;border-color:#8b3d3a}
-.signal-checks{margin:10px 0 0;padding-left:20px;color:#d5dfec;font-size:13px;line-height:1.7}
-.signal-checks li.pass{color:#8de5c7}.signal-checks li.fail{color:#ffb3b0}
-footer{padding:14px 14px 22px;color:var(--muted);font-size:11px;text-align:center;border-top:1px solid #1d2a3d}
-/* Navigation */
-.header-top{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:1200px;margin:auto}
-.brand{display:flex;align-items:center;gap:10px;min-width:0}
-.brand-logo{width:42px;height:42px;object-fit:contain;border-radius:10px;background:#0b1220;border:1px solid var(--line);padding:3px;flex-shrink:0}
-.brand-copy{min-width:0}
-.brand-copy h1{font-size:19px;letter-spacing:.1px}
-.brand-copy .sub{max-width:520px}
-.menu-toggle{white-space:nowrap}
-.main-nav{display:none;max-width:1200px;margin:12px auto 0;gap:7px;flex-wrap:wrap}
-.main-nav.open{display:flex}
-.nav-item{flex:1 1 140px;text-align:center;padding:10px 12px;border-radius:9px;font-size:13px}
-.nav-item.active{background:#1d4770;border-color:var(--blue);color:#fff}
-.page{display:none}
-.page.active{display:block}
-.page-heading{margin:4px 0 14px}
-.page-heading p{margin:0;color:var(--muted);line-height:1.55}
-/* Home */
-.home-hero{position:relative;overflow:hidden;border:1px solid #4a412d;border-radius:18px;padding:clamp(20px,5vw,44px);margin-bottom:18px;background:radial-gradient(ellipse at 90% 0%,#6b552433,transparent 42%),linear-gradient(135deg,#15233a,#0e1726 75%)}
-.eyebrow{display:inline-block;color:#e9cb77;text-transform:uppercase;letter-spacing:1.4px;font-size:11px;font-weight:800;margin-bottom:12px}
-.home-hero h2{font-size:clamp(26px,5.2vw,42px);max-width:720px;margin-bottom:12px}
-.home-hero p{max-width:650px;color:#c3cfdf;line-height:1.65;font-size:14px;margin:0 0 18px}
-.hero-actions{display:flex;flex-wrap:wrap;gap:10px}
-.primary-button{background:var(--gold);color:#111827;border-color:#e3c76f;font-weight:800}
-.home-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.feature-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:left;min-height:145px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;width:100%;white-space:normal}
-.feature-card .feature-icon{font-size:23px;line-height:1.2}
-.feature-card strong{font-size:15px}
-.feature-card span:last-child{font-size:12px;line-height:1.5;color:var(--muted);font-weight:400}
-.feature-card:hover{border-color:#55739a;background:#15233a}
-/* News / about */
-.news-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.news-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;min-height:170px}
-.news-card .source-tag{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#e9cb77;font-weight:800}
-.news-card p{margin:0;color:var(--muted);line-height:1.5;font-size:13px;flex:1}
-.news-card a{font-weight:700}
-.about-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.about-card{padding:16px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
-.about-card p{color:var(--muted);line-height:1.6;margin-bottom:0}
-.premium-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.premium-price{font-size:25px;font-weight:800;letter-spacing:-.4px}
-.premium-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
-.premium-feature{background:#0d1727;border:1px solid #26354a;border-radius:9px;padding:9px;font-size:12px}
-.premium-feature:before{content:"✓ ";color:#20b887;font-weight:800}
-.premium-cta{background:#c9a84c;color:#111827;border-color:#e3c76f;font-weight:800}
-.premium-status{font-size:12px;line-height:1.5;color:#f0d994;margin-top:10px}
-@media(min-width:760px){.menu-toggle{display:none}.main-nav,.main-nav.open{display:flex}.nav-item{flex:0 1 auto}.home-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media(max-width:759px){.main-nav.open .nav-item{flex:1 1 100%;text-align:left}.home-grid,.news-grid,.about-grid{grid-template-columns:1fr}}
-@media(max-width:480px){main{padding:8px}.panel{padding:10px}button{padding:8px 9px}#chartWrap{height:58vh;min-height:300px}.premium-list{grid-template-columns:1fr}.brand-logo{width:38px;height:38px}.brand-copy h1{font-size:18px}.brand-copy .sub{max-width:245px}.home-hero{border-radius:13px}}
-</style>
-</head>
-<body>
-<header class="app-header">
-  <div class="header-top">
-    <div class="brand">
-      <img class="brand-logo" src="./vgn.jpg" alt="Logo TradingAnalyzer" onerror="this.style.display='none'">
-      <div class="brand-copy">
-        <h1>TradingAnalyzer</h1>
-        <div class="sub">Analyse du marché de l’or · XAU/USD</div>
-      </div>
-    </div>
-    <button id="menuToggle" class="menu-toggle" type="button" aria-expanded="false" aria-controls="mainNav">☰ Menu</button>
-  </div> 
-<div id="languageSwitcher" class="row" style="justify-content:flex-end;margin-top:8px">
-  <button type="button" id="langFR" class="active" aria-pressed="true">FR</button>
-  <button type="button" id="langEN" aria-pressed="false">EN</button>
-</div>
+<!DOCTYPE html>  <html lang="fr">  
+<head>  
+<meta charset="UTF-8">  
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">  
+<meta name="theme-color" content="#0b1220">  
+<meta name="apple-mobile-web-app-capable" content="yes">  
+<title>TradingAnalyzer — Analyse du marché de l’or</title>  
+<link rel="manifest" href="./manifest.json">  
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>  
+<style>  
+:root{color-scheme:dark;--bg:#0b1220;--panel:#121c2d;--line:#26354a;--text:#eaf0f8;--muted:#9aaac0;--green:#20b887;--red:#ef5350;--blue:#64a8ff;--gold:#c9a84c}  
+*{box-sizing:border-box}  
+body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,-apple-system,Segoe UI,sans-serif}  
+header.app-header{padding:12px 14px;background:#101a2a;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;box-shadow:0 6px 20px #0002}  
+h1{font-size:20px;margin:0 0 4px}  
+h2{font-size:22px;line-height:1.2;margin:0 0 10px}  
+h3{font-size:16px;margin:0 0 8px}  
+.sub{font-size:12px;color:var(--muted)}  
+main{padding:12px;max-width:1200px;margin:auto;min-height:60vh}  
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}  
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}  
+.row + .row{margin-top:10px}  
+button{background:#1c2a40;border:1px solid #34465f;color:var(--text);border-radius:8px;padding:9px 11px;font-weight:600;cursor:pointer}  
+button.active{background:#1d4770;border-color:var(--blue)}  
+button:disabled{opacity:.5}  
+button:focus-visible,a:focus-visible{outline:2px solid var(--blue);outline-offset:3px}  
+a{color:#8fc3ff;text-decoration:none}  
+a:hover{text-decoration:underline}  
+#status{font-size:12px;color:var(--muted);margin-top:9px;overflow-wrap:anywhere}  
+#status.error{color:#ff9898}  
+#chartWrap{position:relative;width:100%;height:min(62vh,520px);min-height:320px;overflow:hidden;border-radius:8px}  
+#chart{position:absolute;inset:0;width:100%;height:100%}  
+#fvgOverlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3;overflow:hidden}  
+.checks{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}  
+label{font-size:13px;color:#d5dfec;display:inline-flex;align-items:center;gap:5px}  
+input{accent-color:var(--blue)}  
+.section-title{font-weight:700;font-size:14px}  
+.note{font-size:12px;line-height:1.5;color:var(--muted)}  
+#lastPrice{font-weight:700;font-size:18px}  
+.price-green{color:var(--green)}.price-red{color:var(--red)}  
+.signal-badge{font-size:12px;font-weight:800;padding:7px 10px;border-radius:8px;border:1px solid var(--line);white-space:nowrap}  
+.signal-badge.neutral{color:var(--muted);background:#182335}  
+.signal-badge.buy{color:#9cf0d2;background:#123b32;border-color:#24765d}  
+.signal-badge.sell{color:#ffc0bd;background:#442020;border-color:#8b3d3a}  
+.signal-checks{margin:10px 0 0;padding-left:20px;color:#d5dfec;font-size:13px;line-height:1.7}  
+.signal-checks li.pass{color:#8de5c7}.signal-checks li.fail{color:#ffb3b0}  
+footer{padding:14px 14px 22px;color:var(--muted);font-size:11px;text-align:center;border-top:1px solid #1d2a3d}  
+/* Navigation */  
+.header-top{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:1200px;margin:auto}  
+.brand{display:flex;align-items:center;gap:10px;min-width:0}  
+.brand-logo{width:42px;height:42px;object-fit:contain;border-radius:10px;background:#0b1220;border:1px solid var(--line);padding:3px;flex-shrink:0}  
+.brand-copy{min-width:0}  
+.brand-copy h1{font-size:19px;letter-spacing:.1px}  
+.brand-copy .sub{max-width:520px}  
+.menu-toggle{white-space:nowrap}  
+.main-nav{display:none;max-width:1200px;margin:12px auto 0;gap:7px;flex-wrap:wrap}  
+.main-nav.open{display:flex}  
+.nav-item{flex:1 1 140px;text-align:center;padding:10px 12px;border-radius:9px;font-size:13px}  
+.nav-item.active{background:#1d4770;border-color:var(--blue);color:#fff}  
+.page{display:none}  
+.page.active{display:block}  
+.page-heading{margin:4px 0 14px}  
+.page-heading p{margin:0;color:var(--muted);line-height:1.55}  
+/* Home */  
+.home-hero{position:relative;overflow:hidden;border:1px solid #4a412d;border-radius:18px;padding:clamp(20px,5vw,44px);margin-bottom:18px;background:radial-gradient(ellipse at 90% 0%,#6b552433,transparent 42%),linear-gradient(135deg,#15233a,#0e1726 75%)}  
+.eyebrow{display:inline-block;color:#e9cb77;text-transform:uppercase;letter-spacing:1.4px;font-size:11px;font-weight:800;margin-bottom:12px}  
+.home-hero h2{font-size:clamp(26px,5.2vw,42px);max-width:720px;margin-bottom:12px}  
+.home-hero p{max-width:650px;color:#c3cfdf;line-height:1.65;font-size:14px;margin:0 0 18px}  
+.hero-actions{display:flex;flex-wrap:wrap;gap:10px}  
+.primary-button{background:var(--gold);color:#111827;border-color:#e3c76f;font-weight:800}  
+.home-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}  
+.feature-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:left;min-height:145px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;width:100%;white-space:normal}  
+.feature-card .feature-icon{font-size:23px;line-height:1.2}  
+.feature-card strong{font-size:15px}  
+.feature-card span:last-child{font-size:12px;line-height:1.5;color:var(--muted);font-weight:400}  
+.feature-card:hover{border-color:#55739a;background:#15233a}  
+/* News / about */  
+.news-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}  
+.news-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;min-height:170px}  
+.news-card .source-tag{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#e9cb77;font-weight:800}  
+.news-card p{margin:0;color:var(--muted);line-height:1.5;font-size:13px;flex:1}  
+.news-card a{font-weight:700}  
+.about-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}  
+.about-card{padding:16px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}  
+.about-card p{color:var(--muted);line-height:1.6;margin-bottom:0}  
+.premium-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}  
+.premium-price{font-size:25px;font-weight:800;letter-spacing:-.4px}  
+.premium-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}  
+.premium-feature{background:#0d1727;border:1px solid #26354a;border-radius:9px;padding:9px;font-size:12px}  
+.premium-feature:before{content:"✓ ";color:#20b887;font-weight:800}  
+.premium-cta{background:#c9a84c;color:#111827;border-color:#e3c76f;font-weight:800}  
+.premium-status{font-size:12px;line-height:1.5;color:#f0d994;margin-top:10px}  
+@media(min-width:760px){.menu-toggle{display:none}.main-nav,.main-nav.open{display:flex}.nav-item{flex:0 1 auto}.home-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}  
+@media(max-width:759px){.main-nav.open .nav-item{flex:1 1 100%;text-align:left}.home-grid,.news-grid,.about-grid{grid-template-columns:1fr}}  
+@media(max-width:480px){main{padding:8px}.panel{padding:10px}button{padding:8px 9px}#chartWrap{height:58vh;min-height:300px}.premium-list{grid-template-columns:1fr}.brand-logo{width:38px;height:38px}.brand-copy h1{font-size:18px}.brand-copy .sub{max-width:245px}.home-hero{border-radius:13px}}  
+</style>  
+</head>  
+<body>  
+<header class="app-header">  
+  <div class="header-top">  
+    <div class="brand">  
+      <img class="brand-logo" src="./vgn.jpg" alt="Logo TradingAnalyzer" onerror="this.style.display='none'">  
+      <div class="brand-copy">  
+        <h1>TradingAnalyzer</h1>  
+        <div class="sub">Analyse du marché de l’or · XAU/USD</div>  
+      </div>  
+    </div>  
+    <button id="menuToggle" class="menu-toggle" type="button" aria-expanded="false" aria-controls="mainNav">☰ Menu</button>  
+  </div>  
+  <nav id="mainNav" class="main-nav" aria-label="Menu principal">  
+    <button type="button" class="nav-item active" data-page="homePage" aria-current="page">⌂ Accueil</button>  
+    <button type="button" class="nav-item" data-page="subscriptionPage">♛ Abonnement</button>  
+    <button type="button" class="nav-item" data-page="analysisPage">▥ Analyse graphique</button>  
+    <button type="button" class="nav-item" data-page="newsPage">▤ Actualités de l’or</button>  
+    <button type="button" class="nav-item" data-page="aboutPage">ⓘ À propos de nous</button>  
+  </nav>  
+</header>  
+<main>  
+  <section class="page active" id="homePage" aria-labelledby="homeTitle">  
+    <div class="home-hero">  
+      <span class="eyebrow">TradingAnalyzer · XAU/USD</span>  
+      <h2 id="homeTitle">Analysez le marché de l’or avec plus de méthode.</h2>  
+      <p>Retrouvez au même endroit le graphique XAU/USD, des outils d’analyse technique, les informations d’abonnement et des sources d’actualité sur le marché de l’or.</p>  
+      <div class="hero-actions">  
+        <button type="button" class="primary-button" data-open-page="analysisPage">Ouvrir l’analyse graphique</button>  
+        <button type="button" data-open-page="subscriptionPage">Voir les abonnements</button>  
+      </div>  
+    </div>  
+    <div class="page-heading">  
+      <h2>Explorer TradingAnalyzer</h2>  
+      <p>Choisissez une rubrique pour continuer.</p>  
+    </div>  
+    <div class="home-grid">  
+      <button type="button" class="feature-card" data-open-page="subscriptionPage"><span class="feature-icon">♛</span><strong>Abonnement</strong><span>Consultez les forfaits et envoyez une demande après votre transfert Mobile Money.</span></button>  
+      <button type="button" class="feature-card" data-open-page="analysisPage"><span class="feature-icon">▥</span><strong>Analyse graphique</strong><span>Graphique XAU/USD, unités de temps, FVG, BOS/CHoCH et niveaux techniques.</span></button>  
+      <button type="button" class="feature-card" data-open-page="newsPage"><span class="feature-icon">▤</span><strong>Actualités de l’or</strong><span>Accédez aux dernières nouvelles et analyses publiées par des sources spécialisées.</span></button>  
+      <button type="button" class="feature-card" data-open-page="aboutPage"><span class="feature-icon">ⓘ</span><strong>À propos de nous</strong><span>Découvrez la mission et les limites de TradingAnalyzer.</span></button>  
+    </div>  
+    <section class="panel" style="margin-top:14px">  
+      <div class="section-title">À garder en tête</div>  
+      <p class="note" style="margin-bottom:0">TradingAnalyzer est un outil d’aide à l’analyse, pas un service de conseil financier. Les signaux et niveaux sont indicatifs et peuvent être erronés. Vérifiez toujours les données avant toute décision.</p>  
+    </section>   
+  </section>   
+<section class="panel" style="margin-top:20px;">  
+  <h2>📊 Exemples d'analyses techniques</h2>  
+  <p class="note">  
+    Découvrez les signaux d'achat et de vente,  
+    la liquidité, le BOS/CHoCH, les FVG,  
+    l'entrée, le Stop Loss et le Take Profit.  
+  </p>  
+  <img  src="./file_0000000038d881f4a87c4e8cf81f96a2.png"
 
-  <nav id="mainNav" class="main-nav" aria-label="Menu principal">
-    <button type="button" class="nav-item active" data-page="homePage" aria-current="page">⌂ Accueil</button>
-    <button type="button" class="nav-item" data-page="subscriptionPage">♛ Abonnement</button>
-    <button type="button" class="nav-item" data-page="analysisPage">▥ Analyse graphique</button>
-    <button type="button" class="nav-item" data-page="newsPage">▤ Actualités de l’or</button>
-    <button type="button" class="nav-item" data-page="aboutPage">ⓘ À propos de nous</button>
-  </nav>
-</header>
-<main>
-  <section class="page active" id="homePage" aria-labelledby="homeTitle">
-    <div class="home-hero">
-      <span class="eyebrow">TradingAnalyzer · XAU/USD</span>
-      <h2 id="homeTitle">Analysez le marché de l’or avec plus de méthode.</h2>
-      <p>Retrouvez au même endroit le graphique XAU/USD, des outils d’analyse technique, les informations d’abonnement et des sources d’actualité sur le marché de l’or.</p>
-      <div class="hero-actions">
-        <button type="button" class="primary-button" data-open-page="analysisPage">Ouvrir l’analyse graphique</button>
-        <button type="button" data-open-page="subscriptionPage">Voir les abonnements</button>
-      </div>
-    </div>
-    <div class="page-heading">
-      <h2>Explorer TradingAnalyzer</h2>
-      <p>Choisissez une rubrique pour continuer.</p>
-    </div>
-    <div class="home-grid">
-      <button type="button" class="feature-card" data-open-page="subscriptionPage"><span class="feature-icon">♛</span><strong>Abonnement</strong><span>Consultez les forfaits et envoyez une demande après votre transfert Mobile Money.</span></button>
-      <button type="button" class="feature-card" data-open-page="analysisPage"><span class="feature-icon">▥</span><strong>Analyse graphique</strong><span>Graphique XAU/USD, unités de temps, FVG, BOS/CHoCH et niveaux techniques.</span></button>
-      <button type="button" class="feature-card" data-open-page="newsPage"><span class="feature-icon">▤</span><strong>Actualités de l’or</strong><span>Accédez aux dernières nouvelles et analyses publiées par des sources spécialisées.</span></button>
-      <button type="button" class="feature-card" data-open-page="aboutPage"><span class="feature-icon">ⓘ</span><strong>À propos de nous</strong><span>Découvrez la mission et les limites de TradingAnalyzer.</span></button>
-    </div>
-    <section class="panel" style="margin-top:14px">
-      <div class="section-title">À garder en tête</div>
-      <p class="note" style="margin-bottom:0">TradingAnalyzer est un outil d’aide à l’analyse, pas un service de conseil financier. Les signaux et niveaux sont indicatifs et peuvent être erronés. Vérifiez toujours les données avant toute décision.</p>
-    </section> 
-  </section> 
-<section class="panel" style="margin-top:20px;">
-  <h2>📊 Exemples d'analyses techniques</h2>
-  <p class="note">
-    Découvrez les signaux d'achat et de vente,
-    la liquidité, le BOS/CHoCH, les FVG,
-    l'entrée, le Stop Loss et le Take Profit.
-  </p>
-  <img
-    
-src="./file_0000000038d881f4a87c4e8cf81f96a2.png"
-    
-    alt="Exemples d'analyses techniques TradingAnalyzer"
-    loading="lazy"
-    style="display:block;width:100%;height:auto;border-radius:12px;margin-top:12px;"
-  >
-</section>
+alt="Exemples d'analyses techniques TradingAnalyzer"  
+loading="lazy"  
+style="display:block;width:100%;height:auto;border-radius:12px;margin-top:12px;"
 
+> 
 
-  <section class="page" id="subscriptionPage" aria-labelledby="subscriptionTitle">
-    <div class="page-heading"><h2 id="subscriptionTitle">Abonnement TradingAnalyzer</h2><p>Choisissez votre forfait et suivez les instructions de paiement affichées dans le formulaire.</p></div>
-  <section class="panel" id="premiumPanel">
-    <div class="premium-top">
-      <div>
-        <div class="section-title">👑 TradingAnalyzer Premium</div>
-        <div class="note">Accès avancé après vérification manuelle du paiement.</div>
-      </div>
-      <div style="text-align:right">
-        <div class="premium-price">Dès 2 500 FCFA</div>
-        <div class="sub">Choisissez votre forfait</div>
-      </div>
-    </div>
-    <div class="premium-list">
-      <div class="premium-feature">Analyse BOS / CHoCH</div>
-      <div class="premium-feature">Zones FVG multi-unités</div>
-      <div class="premium-feature">Niveaux Entrée / SL / TP</div>
-      <div class="premium-feature">Outils avancés</div>
-    </div>
-    <div class="row">
-      <label for="customerName">Nom complet</label>
-      <input id="customerName" type="text" maxlength="100" autocomplete="name" placeholder="Votre nom" required style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">
-    </div>
-    <div class="row">
-      <label for="customerPhone">Votre numéro Mobile Money</label>
-      <input id="customerPhone" type="tel" maxlength="25" autocomplete="tel" placeholder="Numéro utilisé pour le paiement" required style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">
-    </div>
-    <div class="row">
-      <label for="planSelect">Forfait</label>
-      <select id="planSelect" style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">
-        <option value="7_days">7 jours — 2 500 FCFA</option>
-        <option value="30_days" selected>30 jours — 5 000 FCFA</option>
-        <option value="90_days">90 jours — 10 000 FCFA</option>
-      </select>
-    </div>
-    <div class="row">
-      <label for="paymentMethod">Moyen de paiement</label>
-      <select id="paymentMethod" style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">
-        <option value="MTN MoMo">MTN Mobile Money</option>
-        <option value="Moov Money">Moov Money</option>
-      </select>
-    </div>
-    <div id="paymentInstructions" class="note" style="margin-top:10px">Chargement des informations de paiement…</div>
-    <div class="row">
-      <label for="transactionReference">Référence de transaction</label>
-      <input id="transactionReference" type="text" maxlength="120" placeholder="Référence indiquée sur votre reçu" required style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">
-    </div>
-    <div class="row">
-      <div class="row">
-  <label for="referralCode">Code de parrainage (facultatif)</label>
-  <input id="referralCode" type="text" maxlength="12" placeholder="PA-XXXXX" autocomplete="off" style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">
-      </div>
-      <button id="subscribeBtn" class="premium-cta" style="width:100%">Envoyer ma demande de paiement</button>
-    </div>
-    <div id="premiumStatus" class="premium-status" role="status" aria-live="polite">Votre demande sera examinée manuellement. L’envoi du formulaire ne confirme pas le paiement et n’active pas automatiquement l’abonnement.</div>
-    <p class="note">Ne communiquez jamais votre code PIN Mobile Money. Effectuez le transfert avant d’envoyer la demande. L’accès sera activé uniquement après vérification du paiement. Les signaux sont indicatifs et ne garantissent aucun résultat de trading.</p>
-  </section>
-  </section>
-
-  <section class="page" id="analysisPage" aria-labelledby="analysisTitle">
-<section class="panel" id="accessPanel">
-  <div class="section-title">👑 Accès Premium</div>
-  <div class="note">Entrez le code reçu après validation de votre paiement.</div>
-  <div class="row">
-    <input id="accessCode" type="text" maxlength="20" placeholder="TA-XXXXX-XXXXX" autocomplete="off" style="flex:1;background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px">
-    <button id="accessBtn" class="premium-cta" type="button">Activer</button>
-  </div>
-  <div id="accessMsg" class="note" role="status"></div>
-</section>
-    <div class="page-heading"><h2 id="analysisTitle">Analyse graphique</h2><p>Suivez le marché XAU/USD et utilisez les outils techniques disponibles. Les analyses automatiques restent indicatives.</p></div>
-  <section class="panel">
-    <div class="row" style="justify-content:space-between">
-      <div>
-        <div class="sub">MARCHÉ</div>
-        <div class="section-title">XAU/USD · Or / dollar américain</div>
-      </div>
-      <div style="text-align:right">
-        <div class="sub">DERNIER COURS</div>
-        <div id="lastPrice">—</div>
-      </div>
-    </div>
-    <div class="row" id="timeframes" aria-label="Unités de temps">
-      <button data-interval="1min">1 min</button>
-      <button data-interval="5min" class="active">5 min</button>
-      <button data-interval="15min">15 min</button>
-      <button data-interval="1h">1 h</button>
-      <button data-interval="4h">4 h</button>
-      <button data-interval="1day">1 jour</button>
-    </div>
-    <div id="status" role="status">Connexion au graphique…</div>
-  </section>
-
-  <section class="panel">
-    <div id="chartWrap">
-      <div id="chart"></div>
-      <svg id="fvgOverlay" aria-hidden="true"></svg>
-    </div>
-    <div class="note" style="margin-top:8px">Les rectangles FVG sont indicatifs. Faites défiler ou zoomez le graphique pour examiner les zones récentes.</div>
-  </section>
-
-  <section class="panel">
-    <div class="section-title">Éléments d’analyse à afficher</div>
-    <div class="checks">
-      <label><input type="checkbox" id="showFVG" checked> FVG</label>
-      <label><input type="checkbox" id="showBOS" checked> BOS / CHoCH</label>
-      <label><input type="checkbox" id="showLiquidity"> Liquidités</label>
-      <label><input type="checkbox" id="showSR"> Supports / résistances</label>
-    </div>
-    <div class="section-title" style="margin-top:14px">Unités FVG à afficher</div>
-    <div class="checks">
-      <label><input type="checkbox" class="fvg-tf" value="15min" checked> 15 min</label>
-      <label><input type="checkbox" class="fvg-tf" value="1h" checked> 1 h</label>
-      <label><input type="checkbox" class="fvg-tf" value="4h" checked> 4 h</label>
-      <label><input type="checkbox" class="fvg-tf" value="1day"> 1 jour</label>
-    </div>
-    <div id="analysisToolStatus" class="note" style="margin-top:10px">Les outils s’afficheront ici après le chargement des données.</div>
-    <div class="row" style="margin-top:14px">
-      <button id="refreshBtn">Actualiser maintenant</button>
-    </div>
-    <p class="note">Les marqueurs BOS/CHoCH et les niveaux sont des détections automatiques simplifiées. Vérifiez toujours la structure du marché avant toute décision.</p>
-  </section>
-
-  <section class="panel" id="signalsPanel">
-    <div class="row" style="justify-content:space-between">
-      <div>
-        <div class="section-title">Signaux de confluence</div>
-        <div class="note">Tendance + BOS/CHoCH + balayage de liquidité + retour dans une FVG</div>
-      </div>
-      <div id="signalBadge" class="signal-badge neutral">ANALYSE EN COURS</div>
-    </div>
-    <div id="signalSummary" style="margin-top:10px;font-weight:600">Analyse des dernières bougies…</div>
-    <ul id="signalChecks" class="signal-checks">
-      <li>Chargement des confirmations…</li>
-    </ul>
-    <p class="note">Les lignes Entrée, SL (rouge) et TP (vert) s’affichent lorsqu’un signal complet est détecté. Le SL utilise l’extrême des 11 dernières bougies avec une marge; le TP vise un ratio théorique de 1:2. Ce sont des niveaux indicatifs, pas une garantie ni un conseil financier.</p>
-  </section>
-  </section>
-
-  <section class="page" id="newsPage" aria-labelledby="newsTitle">
-    <div class="page-heading"><h2 id="newsTitle">Actualités du marché de l’or</h2><p>Consultez les derniers articles directement auprès de sites spécialisés. Les liens s’ouvrent dans un nouvel onglet afin de conserver TradingAnalyzer ouvert.</p></div>
-    <div class="news-grid">
-      <article class="news-card">
-        <span class="source-tag">Métaux précieux</span>
-        <h3>Kitco News</h3>
-        <p>Actualités et commentaires sur l’or, l’argent, les métaux précieux et les facteurs économiques pouvant influencer leurs prix.</p>
-        <a href="https://www.kitco.com/news" target="_blank" rel="noopener noreferrer">Lire les dernières actualités Kitco ↗</a>
-      </article>
-      <article class="news-card">
-        <span class="source-tag">Marchés Forex</span>
-        <h3>FXStreet</h3>
-        <p>Actualités macroéconomiques et analyses de marché, notamment autour du dollar américain et de XAU/USD.</p>
-        <a href="https://www.fxstreet.com/news" target="_blank" rel="noopener noreferrer">Lire les actualités FXStreet ↗</a>
-      </article>
-      <article class="news-card">
-        <span class="source-tag">Prix et matières premières</span>
-        <h3>Investing.com</h3>
-        <p>Articles récents et commentaires consacrés au marché de l’or et aux matières premières.</p>
-        <a href="https://www.investing.com/commodities/gold-news" target="_blank" rel="noopener noreferrer">Lire les nouvelles sur l’or ↗</a>
-      </article>
-      <article class="news-card">
-        <span class="source-tag">Recherche à long terme</span>
-        <h3>World Gold Council</h3>
-        <p>Études, données et rapports sur la demande d’or, les banques centrales, les investisseurs et les tendances du marché.</p>
-        <a href="https://www.gold.org/goldhub/research" target="_blank" rel="noopener noreferrer">Consulter les recherches ↗</a>
-      </article>
-    </div>
-    <section class="panel" style="margin-top:14px">
-      <div class="section-title">Événements économiques à surveiller</div>
-      <p class="note">Les annonces de la Réserve fédérale américaine, l’inflation (CPI/PCE), l’emploi américain, le dollar et les rendements obligataires peuvent influencer l’or. Consultez le calendrier avant une décision de trading.</p>
-      <a href="https://www.forexfactory.com/calendar" target="_blank" rel="noopener noreferrer">Ouvrir un calendrier économique ↗</a>
-    </section>
-    <p class="note">Cette rubrique donne accès à des sources externes; elle ne copie pas leurs articles dans l’application. Les contenus peuvent être en anglais et sont soumis aux sites qui les publient.</p>
-  </section>
-
-  <section class="page" id="aboutPage" aria-labelledby="aboutTitle">
-    <div class="page-heading"><h2 id="aboutTitle">À propos de TradingAnalyzer</h2><p>Un projet consacré à l’analyse technique du marché de l’or.</p></div>
-    <section class="panel">
-      <div class="eyebrow">Notre objectif</div>
-      <h2 style="font-size:20px">Rendre les outils d’analyse plus accessibles.</h2>
-      <p style="line-height:1.7;color:#c3cfdf">TradingAnalyzer est un outil web en cours de développement qui rassemble le graphique XAU/USD, plusieurs repères techniques et des liens vers des sources d’actualité. Il vise à aider les utilisateurs à structurer leur observation du marché, sans remplacer leur propre jugement.</p>
-    </section>
-    <div class="about-grid">
-      <div class="about-card"><h3>Outils disponibles</h3><p>Graphique en chandeliers, plusieurs unités de temps, détection simplifiée des FVG et BOS/CHoCH, repères de liquidité, supports, résistances et niveaux de signal indicatifs.</p></div>
-      <div class="about-card"><h3>Abonnements</h3><p>Les demandes d’abonnement sont soumises à une vérification manuelle du paiement. L’envoi d’une demande ne signifie pas que le paiement a été validé ni que l’accès est activé.</p></div>
-      <div class="about-card"><h3>Transparence</h3><p>Les données dépendent du fournisseur de marché et de la disponibilité de la connexion. Les calculs techniques sont simplifiés et peuvent comporter des erreurs.</p></div>
-      <div class="about-card"><h3>Risque de marché</h3><p>Le trading comporte un risque de perte, y compris de tout le capital engagé. TradingAnalyzer ne garantit aucun bénéfice et ne fournit pas de conseil financier personnalisé.</p></div>
-    </div>
-    <section class="panel" style="margin-top:14px">
-      <div class="section-title">Merci d’utiliser TradingAnalyzer</div>
-      <p class="note" style="margin-bottom:0">Nous améliorons progressivement l’application. Veuillez consulter les mentions affichées dans l’application et toujours vérifier les informations de marché auprès de sources fiables.</p>
-    </section>
-  </section>
-</main>
-<footer>TradingAnalyzer • Outil d’aide à l’analyse technique de XAU/USD. Les données dépendent de la disponibilité du fournisseur. Aucun conseil financier n’est fourni.</footer>
-
-<script>
-(() => {
-  "use strict";
-  const nav = document.getElementById("mainNav");
-  const menuToggle = document.getElementById("menuToggle");
-  const validPages = new Set(["homePage", "subscriptionPage", "analysisPage", "newsPage", "aboutPage"]);
-
-  function showPage(pageId, updateAddress = true) {
-    if (!validPages.has(pageId)) pageId = "homePage";
-    document.querySelectorAll(".page").forEach(page => {
-      page.classList.toggle("active", page.id === pageId);
-    });
-    document.querySelectorAll(".nav-item[data-page]").forEach(button => {
-      const selected = button.dataset.page === pageId;
-      button.classList.toggle("active", selected);
-      if (selected) button.setAttribute("aria-current", "page");
-      else button.removeAttribute("aria-current");
-    });
-    nav.classList.remove("open");
-    if (menuToggle) menuToggle.setAttribute("aria-expanded", "false");
-    if (updateAddress && window.history && window.history.replaceState) {
-      window.history.replaceState(null, "", "#" + pageId);
-    }
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    window.dispatchEvent(new Event("tradinganalyzer:pagechange"));
-  }
-
-  document.querySelectorAll(".nav-item[data-page], [data-open-page]").forEach(button => {
-    button.addEventListener("click", () => showPage(button.dataset.page || button.dataset.openPage));
-  });
-
-  if (menuToggle) {
-    menuToggle.addEventListener("click", () => {
-      const opened = nav.classList.toggle("open");
-      menuToggle.setAttribute("aria-expanded", String(opened));
-    });
-  }
-
-  const initialPage = window.location.hash.replace(/^#/, "");
-  if (validPages.has(initialPage)) showPage(initialPage, false);
-})();
-</script>
-
-<script>
-(() => {
-  "use strict";
-
-
-  // Formulaire Premium : envoie une demande au Worker de paiement.
-  // Le transfert reste vérifié manuellement ; aucun paiement n'est prélevé ici.
-  const PAYMENT_API = "https://tradinganalyzer-paymentd5eb.cedricadjaito.workers.dev";
-  const subscribeBtn = document.getElementById("subscribeBtn");
-  const paymentMethod = document.getElementById("paymentMethod");
-  const planSelect = document.getElementById("planSelect");
-  const premiumStatus = document.getElementById("premiumStatus");
-  const paymentInstructions = document.getElementById("paymentInstructions");
-  let paymentInfo = null;
-  const planAmounts = { "7_days": 2500, "30_days": 5000, "90_days": 10000 };
-
-  function updatePaymentInstructions() {
-    if (!paymentInstructions) return;
-    const method = paymentMethod.value;
-    const recipient = paymentInfo && paymentInfo.methods ? paymentInfo.methods[method] : null;
-    const amount = planAmounts[planSelect.value];
-    if (!recipient || !amount) {
-      paymentInstructions.textContent = "Le numéro de réception est indisponible. Réessayez plus tard.";
-      return;
-    }
-    paymentInstructions.textContent = "Transférez " + amount.toLocaleString("fr-FR") +
-      " FCFA via " + method + " au numéro " + recipient +
-      ". Après le transfert, saisissez la référence figurant sur votre reçu.";
-  }
-
-  async function loadPaymentInfo() {
-    try {
-      const response = await fetch(PAYMENT_API + "/api/payment-info", { cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok || !data.methods || !data.plans) {
-        throw new Error("Informations de paiement indisponibles.");
-      }
-      paymentInfo = data;
-      updatePaymentInstructions();
-    } catch (error) {
-      paymentInstructions.textContent = "Impossible de charger les informations de paiement. Vérifiez la connexion et réessayez.";
-    }
-  }
-
-  if (subscribeBtn && paymentMethod && planSelect && premiumStatus && paymentInstructions) {
-    paymentMethod.addEventListener("change", updatePaymentInstructions);
-    planSelect.addEventListener("change", updatePaymentInstructions);
-
-    subscribeBtn.addEventListener("click", async () => {
-      const customerName = document.getElementById("customerName").value.trim();
-      const customerPhone = document.getElementById("customerPhone").value.trim();
-      const transactionReference = document.getElementById("transactionReference").value.trim();
-      if (!customerName || !customerPhone || !transactionReference) {
-        premiumStatus.textContent = "Veuillez renseigner votre nom, votre numéro de téléphone et la référence de transaction.";
-        return;
-      }
-      if (!paymentInfo || !paymentInfo.methods || !paymentInfo.methods[paymentMethod.value]) {
-        premiumStatus.textContent = "Les informations de paiement ne sont pas disponibles. Réessayez plus tard.";
-        return;
-      }
-      if (!planAmounts[planSelect.value]) {
-        premiumStatus.textContent = "Veuillez choisir un forfait valide.";
-        return;
-      }
-      const amount = planAmounts[planSelect.value];
-      if (!window.confirm("Confirmez-vous avoir transféré " + amount.toLocaleString("fr-FR") +
-        " FCFA via " + paymentMethod.value + " ?")) return;
-
-      subscribeBtn.disabled = true;
-      premiumStatus.textContent = "Envoi de la demande en cours…";
-      try {
-        const response = await fetch(PAYMENT_API + "/api/payments", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customer_name: customerName,
-            customer_phone: customerPhone,
-            payment_method: paymentMethod.value,
-            plan: planSelect.value,
-                        transaction_reference: transactionReference,
-            referral_code: document.getElementById("referralCode").value.trim().toUpperCase()
-          })
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.error || "Le serveur a refusé la demande (" + response.status + ").");
-        premiumStatus.textContent = "Demande envoyée. Elle doit être vérifiée manuellement. Votre abonnement n’est pas encore activé. Conservez votre reçu.";
-      } catch (error) {
-        premiumStatus.textContent = "La demande n’a pas pu être confirmée : " +
-          (error.message || "erreur de connexion") +
-          ". Vérifiez votre connexion. Si vous réessayez, évitez d’envoyer une demande en double.";
-      } finally {
-        subscribeBtn.disabled = false;
-      }
-    });
-    loadPaymentInfo();
-  }
-
-  // Adresse du Worker Cloudflare déjà configuré. La clé API reste côté serveur.
-  const API_URL = "https://tradinganalyzer-api.cedricadjaito.workers.dev";
-  let premium = false;
-  const CODE_KEY = "ta_access_code";
-
-  function showLockedSignals() {
-    const badge = document.getElementById("signalBadge");
-    badge.className = "signal-badge neutral";
-    badge.textContent = "PREMIUM";
-    document.getElementById("signalSummary").textContent = "Signaux Entrée / SL / TP réservés aux abonnés Premium.";
-    document.getElementById("signalChecks").innerHTML = "<li>Entrez votre code d’accès pour débloquer FVG, BOS/CHoCH, liquidités, supports/résistances et signaux.</li>";
-    const t = document.getElementById("analysisToolStatus");
-    if (t) t.textContent = "Outils avancés verrouillés : abonnement Premium requis.";
-  }
-
-  async function applyCode(code) {
-    const msg = document.getElementById("accessMsg");
-    try {
-      const response = await fetch(PAYMENT_API + "/api/access/check?code=" + encodeURIComponent(code), { cache: "no-store" });
-      const r = await response.json();
-      if (r.valid) {
-        premium = true;
-        try { localStorage.setItem(CODE_KEY, code); } catch (_) {}
-        msg.textContent = "Accès Premium actif jusqu’au " + new Date(r.expires_at).toLocaleDateString("fr-FR") + "."; if (r.referral_code) msg.textContent += " Votre code de parrainage : " + r.referral_code + " (7 jours offerts pour chaque ami qui s’abonne avec ce code).";
-      } else {
-        premium = false;
-        try { localStorage.removeItem(CODE_KEY); } catch (_) {}
-        msg.textContent = r.expired ? "Ce code a expiré." : "Code invalide.";
-      }
-    } catch (e) {
-      msg.textContent = "Vérification impossible. Réessayez.";
-      return;
-    }
-    if (candles.length) calculateAnalysis(candles);
-    refreshFVG();
-  }
-  const INTERVALS = ["1min", "5min", "15min", "1h", "4h", "1day"];
-  const FVG_INTERVALS = ["15min", "1h", "4h", "1day"];
-  const statusEl = document.getElementById("status");
-  const chartEl = document.getElementById("chart");
-  const chartWrap = document.getElementById("chartWrap");
-  const overlay = document.getElementById("fvgOverlay");
-  const priceEl = document.getElementById("lastPrice");
-
-  let currentInterval = "5min";
-  let candles = [];
-  let fvgZonesByTimeframe = new Map();
-  let refreshTimer = null;
-  let requestNumber = 0;
-  let resizeObserver = null;
-
-  if (!window.LightweightCharts) {
-    statusEl.textContent = "Erreur : la bibliothèque du graphique n’a pas pu être chargée. Vérifiez votre connexion Internet.";
-    statusEl.classList.add("error");
-    return;
-  }
-
-  const chart = LightweightCharts.createChart(chartEl, {
-    width: chartEl.clientWidth || 600,
-    height: chartEl.clientHeight || 400,
-    layout: { background: { type: "solid", color: "#0b1220" }, textColor: "#d9e3f0" },
-    grid: { vertLines: { color: "#1a2638" }, horzLines: { color: "#1a2638" } },
-    rightPriceScale: { borderColor: "#26354a" },
-    timeScale: { borderColor: "#26354a", timeVisible: true, secondsVisible: false, rightOffset: 5 },
-    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-    handleScroll: true,
-    handleScale: true
-  });
-
-  const candlesSeries = chart.addCandlestickSeries({
-    upColor: "#20b887",
-    downColor: "#ef5350",
-    borderUpColor: "#20b887",
-    borderDownColor: "#ef5350",
-    wickUpColor: "#20b887",
-    wickDownColor: "#ef5350",
-    priceLineVisible: true,
-    lastValueVisible: true
-  });
-
-  function setStatus(message, isError = false) {
-    statusEl.textContent = message;
-    statusEl.classList.toggle("error", isError);
-  }
-
-  function normaliseCandles(input) {
-    if (!Array.isArray(input)) return [];
-    return input.map(c => {
-      let t = c.time;
-      if (typeof t === "string") {
-        const parsed = Date.parse(t);
-        t = Number.isFinite(parsed) ? Math.floor(parsed / 1000) : NaN;
-      } else if (typeof t === "number" && t > 100000000000) {
-        t = Math.floor(t / 1000);
-      }
-      return {
-        time: t,
-        open: Number(c.open),
-        high: Number(c.high),
-        low: Number(c.low),
-        close: Number(c.close)
-      };
-    }).filter(c => Number.isFinite(c.time) && [c.open,c.high,c.low,c.close].every(Number.isFinite))
-      .sort((a,b) => a.time - b.time)
-      .filter((c,i,arr) => i === 0 || c.time !== arr[i-1].time);
-  }
-
-  async function fetchCandles(interval) {
-    const url = API_URL + "/?interval=" + encodeURIComponent(interval); 
+</section>    <section class="page" id="subscriptionPage" aria-labelledby="subscriptionTitle">  
+    <div class="page-heading"><h2 id="subscriptionTitle">Abonnement TradingAnalyzer</h2><p>Choisissez votre forfait et suivez les instructions de paiement affichées dans le formulaire.</p></div>  
+  <section class="panel" id="premiumPanel">  
+    <div class="premium-top">  
+      <div>  
+        <div class="section-title">👑 TradingAnalyzer Premium</div>  
+        <div class="note">Accès avancé après vérification manuelle du paiement.</div>  
+      </div>  
+      <div style="text-align:right">  
+        <div class="premium-price">Dès 2 500 FCFA</div>  
+        <div class="sub">Choisissez votre forfait</div>  
+      </div>  
+    </div>  
+    <div class="premium-list">  
+      <div class="premium-feature">Analyse BOS / CHoCH</div>  
+      <div class="premium-feature">Zones FVG multi-unités</div>  
+      <div class="premium-feature">Niveaux Entrée / SL / TP</div>  
+      <div class="premium-feature">Outils avancés</div>  
+    </div>  
+    <div class="row">  
+      <label for="customerName">Nom complet</label>  
+      <input id="customerName" type="text" maxlength="100" autocomplete="name" placeholder="Votre nom" required style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">  
+    </div>  
+    <div class="row">  
+      <label for="customerPhone">Votre numéro Mobile Money</label>  
+      <input id="customerPhone" type="tel" maxlength="25" autocomplete="tel" placeholder="Numéro utilisé pour le paiement" required style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">  
+    </div>  
+    <div class="row">  
+      <label for="planSelect">Forfait</label>  
+      <select id="planSelect" style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">  
+        <option value="7_days">7 jours — 2 500 FCFA</option>  
+        <option value="30_days" selected>30 jours — 5 000 FCFA</option>  
+        <option value="90_days">90 jours — 10 000 FCFA</option>  
+      </select>  
+    </div>  
+    <div class="row">  
+      <label for="paymentMethod">Moyen de paiement</label>  
+      <select id="paymentMethod" style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">  
+        <option value="MTN MoMo">MTN Mobile Money</option>  
+        <option value="Moov Money">Moov Money</option>  
+      </select>  
+    </div>  
+    <div id="paymentInstructions" class="note" style="margin-top:10px">Chargement des informations de paiement…</div>  
+    <div class="row">  
+      <label for="transactionReference">Référence de transaction</label>  
+      <input id="transactionReference" type="text" maxlength="120" placeholder="Référence indiquée sur votre reçu" required style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">  
+    </div>  
+    <div class="row">  
+      <div class="row">  
+  <label for="referralCode">Code de parrainage (facultatif)</label>  
+  <input id="referralCode" type="text" maxlength="12" placeholder="PA-XXXXX" autocomplete="off" style="background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;width:100%">  
+      </div>  
+      <button id="subscribeBtn" class="premium-cta" style="width:100%">Envoyer ma demande de paiement</button>  
+    </div>  
+    <div id="premiumStatus" class="premium-status" role="status" aria-live="polite">Votre demande sera examinée manuellement. L’envoi du formulaire ne confirme pas le paiement et n’active pas automatiquement l’abonnement.</div>  
+    <p class="note">Ne communiquez jamais votre code PIN Mobile Money. Effectuez le transfert avant d’envoyer la demande. L’accès sera activé uniquement après vérification du paiement. Les signaux sont indicatifs et ne garantissent aucun résultat de trading.</p>  
+  </section>  
+  </section>    <section class="page" id="analysisPage" aria-labelledby="analysisTitle">  
+<section class="panel" id="accessPanel">  
+  <div class="section-title">👑 Accès Premium</div>  
+  <div class="note">Entrez le code reçu après validation de votre paiement.</div>  
+  <div class="row">  
+    <input id="accessCode" type="text" maxlength="20" placeholder="TA-XXXXX-XXXXX" autocomplete="off" style="flex:1;background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px">  
+    <button id="accessBtn" class="premium-cta" type="button">Activer</button>  
+  </div>  
+  <div id="accessMsg" class="note" role="status"></div>  
+</section>  
+    <div class="page-heading"><h2 id="analysisTitle">Analyse graphique</h2><p>Suivez le marché XAU/USD et utilisez les outils techniques disponibles. Les analyses automatiques restent indicatives.</p></div>  
+  <section class="panel">  
+    <div class="row" style="justify-content:space-between">  
+      <div>  
+        <div class="sub">MARCHÉ</div>  
+        <div class="section-title">XAU/USD · Or / dollar américain</div>  
+      </div>  
+      <div style="text-align:right">  
+        <div class="sub">DERNIER COURS</div>  
+        <div id="lastPrice">—</div>  
+      </div>  
+    </div>  
+    <div class="row" id="timeframes" aria-label="Unités de temps">  
+      <button data-interval="1min">1 min</button>  
+      <button data-interval="5min" class="active">5 min</button>  
+      <button data-interval="15min">15 min</button>  
+      <button data-interval="1h">1 h</button>  
+      <button data-interval="4h">4 h</button>  
+      <button data-interval="1day">1 jour</button>  
+    </div>  
+    <div id="status" role="status">Connexion au graphique…</div>  
+  </section>    <section class="panel">  
+    <div id="chartWrap">  
+      <div id="chart"></div>  
+      <svg id="fvgOverlay" aria-hidden="true"></svg>  
+    </div>  
+    <div class="note" style="margin-top:8px">Les rectangles FVG sont indicatifs. Faites défiler ou zoomez le graphique pour examiner les zones récentes.</div>  
+  </section>    <section class="panel">  
+    <div class="section-title">Éléments d’analyse à afficher</div>  
+    <div class="checks">  
+      <label><input type="checkbox" id="showFVG" checked> FVG</label>  
+      <label><input type="checkbox" id="showBOS" checked> BOS / CHoCH</label>  
+      <label><input type="checkbox" id="showLiquidity"> Liquidités</label>  
+      <label><input type="checkbox" id="showSR"> Supports / résistances</label>  
+    </div>  
+    <div class="section-title" style="margin-top:14px">Unités FVG à afficher</div>  
+    <div class="checks">  
+      <label><input type="checkbox" class="fvg-tf" value="15min" checked> 15 min</label>  
+      <label><input type="checkbox" class="fvg-tf" value="1h" checked> 1 h</label>  
+      <label><input type="checkbox" class="fvg-tf" value="4h" checked> 4 h</label>  
+      <label><input type="checkbox" class="fvg-tf" value="1day"> 1 jour</label>  
+    </div>  
+    <div id="analysisToolStatus" class="note" style="margin-top:10px">Les outils s’afficheront ici après le chargement des données.</div>  
+    <div class="row" style="margin-top:14px">  
+      <button id="refreshBtn">Actualiser maintenant</button>  
+    </div>  
+    <p class="note">Les marqueurs BOS/CHoCH et les niveaux sont des détections automatiques simplifiées. Vérifiez toujours la structure du marché avant toute décision.</p>  
+  </section>    <section class="panel" id="signalsPanel">  
+    <div class="row" style="justify-content:space-between">  
+      <div>  
+        <div class="section-title">Signaux de confluence</div>  
+        <div class="note">Tendance + BOS/CHoCH + balayage de liquidité + retour dans une FVG</div>  
+      </div>  
+      <div id="signalBadge" class="signal-badge neutral">ANALYSE EN COURS</div>  
+    </div>  
+    <div id="signalSummary" style="margin-top:10px;font-weight:600">Analyse des dernières bougies…</div>  
+    <ul id="signalChecks" class="signal-checks">  
+      <li>Chargement des confirmations…</li>  
+    </ul>  
+    <p class="note">Les lignes Entrée, SL (rouge) et TP (vert) s’affichent lorsqu’un signal complet est détecté. Le SL utilise l’extrême des 11 dernières bougies avec une marge; le TP vise un ratio théorique de 1:2. Ce sont des niveaux indicatifs, pas une garantie ni un conseil financier.</p>  
+  </section>  
+  </section>    <section class="page" id="newsPage" aria-labelledby="newsTitle">  
+    <div class="page-heading"><h2 id="newsTitle">Actualités du marché de l’or</h2><p>Consultez les derniers articles directement auprès de sites spécialisés. Les liens s’ouvrent dans un nouvel onglet afin de conserver TradingAnalyzer ouvert.</p></div>  
+    <div class="news-grid">  
+      <article class="news-card">  
+        <span class="source-tag">Métaux précieux</span>  
+        <h3>Kitco News</h3>  
+        <p>Actualités et commentaires sur l’or, l’argent, les métaux précieux et les facteurs économiques pouvant influencer leurs prix.</p>  
+        <a href="https://www.kitco.com/news" target="_blank" rel="noopener noreferrer">Lire les dernières actualités Kitco ↗</a>  
+      </article>  
+      <article class="news-card">  
+        <span class="source-tag">Marchés Forex</span>  
+        <h3>FXStreet</h3>  
+        <p>Actualités macroéconomiques et analyses de marché, notamment autour du dollar américain et de XAU/USD.</p>  
+        <a href="https://www.fxstreet.com/news" target="_blank" rel="noopener noreferrer">Lire les actualités FXStreet ↗</a>  
+      </article>  
+      <article class="news-card">  
+        <span class="source-tag">Prix et matières premières</span>  
+        <h3>Investing.com</h3>  
+        <p>Articles récents et commentaires consacrés au marché de l’or et aux matières premières.</p>  
+        <a href="https://www.investing.com/commodities/gold-news" target="_blank" rel="noopener noreferrer">Lire les nouvelles sur l’or ↗</a>  
+      </article>  
+      <article class="news-card">  
+        <span class="source-tag">Recherche à long terme</span>  
+        <h3>World Gold Council</h3>  
+        <p>Études, données et rapports sur la demande d’or, les banques centrales, les investisseurs et les tendances du marché.</p>  
+        <a href="https://www.gold.org/goldhub/research" target="_blank" rel="noopener noreferrer">Consulter les recherches ↗</a>  
+      </article>  
+    </div>  
+    <section class="panel" style="margin-top:14px">  
+      <div class="section-title">Événements économiques à surveiller</div>  
+      <p class="note">Les annonces de la Réserve fédérale américaine, l’inflation (CPI/PCE), l’emploi américain, le dollar et les rendements obligataires peuvent influencer l’or. Consultez le calendrier avant une décision de trading.</p>  
+      <a href="https://www.forexfactory.com/calendar" target="_blank" rel="noopener noreferrer">Ouvrir un calendrier économique ↗</a>  
+    </section>  
+    <p class="note">Cette rubrique donne accès à des sources externes; elle ne copie pas leurs articles dans l’application. Les contenus peuvent être en anglais et sont soumis aux sites qui les publient.</p>  
+  </section>    <section class="page" id="aboutPage" aria-labelledby="aboutTitle">  
+    <div class="page-heading"><h2 id="aboutTitle">À propos de TradingAnalyzer</h2><p>Un projet consacré à l’analyse technique du marché de l’or.</p></div>  
+    <section class="panel">  
+      <div class="eyebrow">Notre objectif</div>  
+      <h2 style="font-size:20px">Rendre les outils d’analyse plus accessibles.</h2>  
+      <p style="line-height:1.7;color:#c3cfdf">TradingAnalyzer est un outil web en cours de développement qui rassemble le graphique XAU/USD, plusieurs repères techniques et des liens vers des sources d’actualité. Il vise à aider les utilisateurs à structurer leur observation du marché, sans remplacer leur propre jugement.</p>  
+    </section>  
+    <div class="about-grid">  
+      <div class="about-card"><h3>Outils disponibles</h3><p>Graphique en chandeliers, plusieurs unités de temps, détection simplifiée des FVG et BOS/CHoCH, repères de liquidité, supports, résistances et niveaux de signal indicatifs.</p></div>  
+      <div class="about-card"><h3>Abonnements</h3><p>Les demandes d’abonnement sont soumises à une vérification manuelle du paiement. L’envoi d’une demande ne signifie pas que le paiement a été validé ni que l’accès est activé.</p></div>  
+      <div class="about-card"><h3>Transparence</h3><p>Les données dépendent du fournisseur de marché et de la disponibilité de la connexion. Les calculs techniques sont simplifiés et peuvent comporter des erreurs.</p></div>  
+      <div class="about-card"><h3>Risque de marché</h3><p>Le trading comporte un risque de perte, y compris de tout le capital engagé. TradingAnalyzer ne garantit aucun bénéfice et ne fournit pas de conseil financier personnalisé.</p></div>  
+    </div>  
+    <section class="panel" style="margin-top:14px">  
+      <div class="section-title">Merci d’utiliser TradingAnalyzer</div>  
+      <p class="note" style="margin-bottom:0">Nous améliorons progressivement l’application. Veuillez consulter les mentions affichées dans l’application et toujours vérifier les informations de marché auprès de sources fiables.</p>  
+    </section>  
+  </section>  
+</main>  
+<footer>TradingAnalyzer • Outil d’aide à l’analyse technique de XAU/USD. Les données dépendent de la disponibilité du fournisseur. Aucun conseil financier n’est fourni.</footer>  <script>  
+(() => {  
+  "use strict";  
+  const nav = document.getElementById("mainNav");  
+  const menuToggle = document.getElementById("menuToggle");  
+  const validPages = new Set(["homePage", "subscriptionPage", "analysisPage", "newsPage", "aboutPage"]);  
   
-    const response = await fetch(url, { cache: "no-store" });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Erreur serveur (" + response.status + ")");
-    const parsed = normaliseCandles(data.candles);
-    if (!parsed.length) throw new Error(data.error || "Le serveur n’a renvoyé aucune bougie.");
-    return parsed;
-  }
-
-  function detectFVG(data, interval) {
-    const zones = [];
-    for (let i = 2; i < data.length; i++) {
-      const first = data[i - 2], third = data[i];
-      // FVG haussier : le plus bas de la troisième bougie dépasse le plus haut de la première.
-      if (third.low > first.high) {
-        zones.push({ type: "bullish", interval, low: first.high, high: third.low, time: third.time });
-      }
-      // FVG baissier : le plus haut de la troisième bougie est sous le plus bas de la première.
-      if (third.high < first.low) {
-        zones.push({ type: "bearish", interval, low: third.high, high: first.low, time: third.time });
-      }
-    }
-    return zones;
-  }
-
-  function intervalSeconds(interval) {
-    return ({ "1min":60, "5min":300, "15min":900, "1h":3600, "4h":14400, "1day":86400 })[interval] || 300;
-  }
-
-  function drawFVGOverlay() {
-    overlay.innerHTML = "";
-    if (!premium || !document.getElementById("showFVG").checked || !candles.length) return;
-
-    const width = chartWrap.clientWidth;
-    const height = chartWrap.clientHeight;
-    overlay.setAttribute("viewBox", `0 0 ${width} ${height}`);
-    overlay.setAttribute("preserveAspectRatio", "none");
-
-    // Les coordonnées de timeToCoordinate sont déjà relatives à la zone de tracé.
-    const plotWidth = chart.timeScale().width();
-    const plotLeft = 0;
-    const visible = chart.timeScale().getVisibleRange();
-    if (!visible) return;
-    const from = typeof visible.from === "number" ? visible.from : visible.from.timestamp;
-    const to = typeof visible.to === "number" ? visible.to : visible.to.timestamp;
-    if (!Number.isFinite(from) || !Number.isFinite(to)) return;
-
-    const selected = new Set(Array.from(document.querySelectorAll(".fvg-tf:checked")).map(el => el.value));
-    for (const [interval, zones] of fvgZonesByTimeframe.entries()) {
-      if (!selected.has(interval)) continue;
-      const step = intervalSeconds(interval);
-      // Limiter les zones aux bougies récentes visibles; éviter les coordonnées futures inexistantes.
-      for (const zone of zones) {
-        const zoneStart = zone.time;
-        const zoneEnd = zone.time + step * 3;
-        if (zoneEnd < from || zoneStart > to) continue;
-
-        const x1c = chart.timeScale().timeToCoordinate(zoneStart);
-        const x2c = chart.timeScale().timeToCoordinate(Math.min(zoneEnd, to));
-        const y1 = candlesSeries.priceToCoordinate(zone.high);
-        const y2 = candlesSeries.priceToCoordinate(zone.low);
-        if (y1 == null || y2 == null) continue;
-
-        let left = x1c == null ? 0 : x1c;
-        let right = x2c == null ? Math.min(width, plotWidth) : x2c;
-        left = Math.max(0, Math.min(width, left));
-        right = Math.max(0, Math.min(width, right));
-        if (right - left < 2) right = Math.min(width, left + Math.max(8, plotWidth / Math.max(candles.length, 1) * 3));
-        const top = Math.max(0, Math.min(height, Math.min(y1, y2)));
-        const bottom = Math.max(0, Math.min(height, Math.max(y1, y2)));
-        if (right <= left || bottom <= top) continue;
-
-        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        const color = zone.type === "bullish" ? "#20b887" : "#ef5350";
-        rect.setAttribute("x", String(left));
-        rect.setAttribute("y", String(top));
-        rect.setAttribute("width", String(right-left));
-        rect.setAttribute("height", String(Math.max(2,bottom-top)));
-        rect.setAttribute("fill", color);
-        rect.setAttribute("fill-opacity", "0.18");
-        rect.setAttribute("stroke", color);
-        rect.setAttribute("stroke-width", "1");
-        rect.setAttribute("data-interval", interval);
-        overlay.appendChild(rect);
-      }
-    }
-  }
-
-  function addPriceLevel(price, title, color, style = LightweightCharts.LineStyle.Dashed) {
-    return candlesSeries.createPriceLine({
-      price, title, color, lineWidth: 1, lineStyle: style,
-      axisLabelVisible: true, lineVisible: true
-    });
-  }
-
-  let analysisLines = [];
-  function clearAnalysisLines() {
-    analysisLines.forEach(line => { try { candlesSeries.removePriceLine(line); } catch (_) {} });
-    analysisLines = [];
-  }
-
-  function ema(values, period) {
-    if (values.length < period) return null;
-    const k = 2 / (period + 1);
-    let value = values.slice(0, period).reduce((sum, n) => sum + n, 0) / period;
-    for (let i = period; i < values.length; i++) value = values[i] * k + value * (1 - k);
-    return value;
-  }
-
-  function detectSignal(data) {
-    const badge = document.getElementById("signalBadge");
-    const summary = document.getElementById("signalSummary");
-    const checks = document.getElementById("signalChecks");
-    const closeValues = data.map(c => c.close);
-    const fastEma = ema(closeValues, 20);
-    const slowEma = ema(closeValues, 50);
-
-    const showChecks = items => {
-      checks.innerHTML = items.map(item =>
-        `<li class="${item.pass ? "pass" : "fail"}">${item.pass ? "✓" : "○"} ${item.label}</li>`
-      ).join("");
-    };
-    const setBadge = (type, text) => {
-      badge.className = "signal-badge " + type;
-      badge.textContent = text;
-    };
-    const formatPrice = price => Number(price).toFixed(2);
-
-    if (data.length < 55 || fastEma == null || slowEma == null) {
-      setBadge("neutral", "DONNÉES INSUFFISANTES");
-      summary.textContent = "Il faut au moins 55 bougies pour évaluer les conditions.";
-      showChecks([{pass:false, label:"Attendre davantage de données avant de calculer les signaux."}]);
-      return null;
-    }
-
-    const lastIndex = data.length - 1;
-    const last = data[lastIndex];
-    const recentCandles = data.slice(Math.max(0, lastIndex - 10), lastIndex + 1);
-    const recentLow = Math.min(...recentCandles.map(c => c.low));
-    const recentHigh = Math.max(...recentCandles.map(c => c.high));
-    const swingHighs = [];
-    const swingLows = [];
-
-    for (let i = 2; i < data.length - 2; i++) {
-      if (data[i].high > data[i-1].high && data[i].high > data[i-2].high &&
-          data[i].high >= data[i+1].high && data[i].high >= data[i+2].high) {
-        swingHighs.push({index:i, price:data[i].high});
-      }
-      if (data[i].low < data[i-1].low && data[i].low < data[i-2].low &&
-          data[i].low <= data[i+1].low && data[i].low <= data[i+2].low) {
-        swingLows.push({index:i, price:data[i].low});
-      }
-    }
-
-    const trend = fastEma > slowEma ? "bullish" : fastEma < slowEma ? "bearish" : "neutral";
-    let bosDirection = null;
-    for (let i = Math.max(2, lastIndex - 8); i <= lastIndex; i++) {
-      const priorHigh = swingHighs.filter(s => s.index < i).slice(-1)[0];
-      const priorLow = swingLows.filter(s => s.index < i).slice(-1)[0];
-      if (priorHigh && data[i].close > priorHigh.price) bosDirection = "bullish";
-      if (priorLow && data[i].close < priorLow.price) bosDirection = "bearish";
-    }
-
-    // Balayage de liquidité : mèche au-delà d'un swing, puis clôture de retour dans le niveau.
-    let sweepDirection = null;
-    for (let i = Math.max(2, lastIndex - 5); i <= lastIndex; i++) {
-      const priorHigh = swingHighs.filter(s => s.index < i && s.index >= i - 15).slice(-1)[0];
-      const priorLow = swingLows.filter(s => s.index < i && s.index >= i - 15).slice(-1)[0];
-      if (priorLow && data[i].low < priorLow.price && data[i].close > priorLow.price) sweepDirection = "bullish";
-      if (priorHigh && data[i].high > priorHigh.price && data[i].close < priorHigh.price) sweepDirection = "bearish";
-    }
-
-    // Cherche une FVG récente dans l'unité courante, puis vérifie le retour du prix dans sa zone.
-    const localZones = detectFVG(data, currentInterval)
-      .filter(z => z.time >= data[Math.max(0, lastIndex - 20)].time);
-    const matchingZone = localZones.slice().reverse().find(z => last.close >= z.low && last.close <= z.high);
-    const fvgDirection = matchingZone ? matchingZone.type : null;
-
-    const buyChecks = [
-      {pass:trend === "bullish", label:"Tendance haussière (EMA 20 au-dessus de l’EMA 50)"},
-      {pass:bosDirection === "bullish", label:"BOS haussier récent"},
-      {pass:sweepDirection === "bullish", label:"Balayage de liquidité sous un creux puis clôture au-dessus"},
-      {pass:fvgDirection === "bullish", label:"Retour du prix dans une FVG haussière récente"}
-    ];
-    const sellChecks = [
-      {pass:trend === "bearish", label:"Tendance baissière (EMA 20 sous l’EMA 50)"},
-      {pass:bosDirection === "bearish", label:"BOS baissier récent"},
-      {pass:sweepDirection === "bearish", label:"Balayage de liquidité au-dessus d’un sommet puis clôture en dessous"},
-      {pass:fvgDirection === "bearish", label:"Retour du prix dans une FVG baissière récente"}
-    ];
-
-    const buyReady = buyChecks.every(item => item.pass);
-    const sellReady = sellChecks.every(item => item.pass);
-
-    if (!buyReady && !sellReady) {
-      setBadge("neutral", "PAS DE SIGNAL COMPLET");
-      summary.textContent = "Aucun signal complet pour l’instant. Les critères manquants sont listés ci-dessous.";
-      showChecks(trend === "bearish" ? sellChecks : buyChecks);
-      return null;
-    }
-
-    const direction = buyReady ? "buy" : "sell";
-    const entry = last.close;
-    // SL derrière l'extrême récent avec une petite marge; TP vise 2 fois le risque.
-    const buffer = Math.max(entry * 0.0005, 0.01);
-    const stopLoss = direction === "buy" ? recentLow - buffer : recentHigh + buffer;
-    const risk = Math.abs(entry - stopLoss);
-    if (!Number.isFinite(risk) || risk <= 0) {
-      setBadge("neutral", "NIVEAUX INDISPONIBLES");
-      summary.textContent = "Impossible de calculer un risque valide avec les dernières bougies.";
-      showChecks(buyReady ? buyChecks : sellChecks);
-      return null;
-    }
-    const takeProfit = direction === "buy" ? entry + risk * 2 : entry - risk * 2;
-
-    if (direction === "buy") {
-      setBadge("buy", "ACHAT POTENTIEL");
-      showChecks(buyChecks);
-    } else {
-      setBadge("sell", "VENTE POTENTIELLE");
-      showChecks(sellChecks);
-    }
-
-    summary.innerHTML =
-      `Entrée indicative : <strong>${formatPrice(entry)}</strong><br>` +
-      `Stop Loss (SL) : <strong>${formatPrice(stopLoss)}</strong><br>` +
-      `Take Profit (TP) : <strong>${formatPrice(takeProfit)}</strong><br>` +
-      `<span class="note">Ratio risque/rendement théorique : 1:2 · Unités : ${currentInterval}</span>`;
-
-    return {
-      time: last.time,
-      position: direction === "buy" ? "belowBar" : "aboveBar",
-      color: direction === "buy" ? "#20b887" : "#ef5350",
-      shape: direction === "buy" ? "arrowUp" : "arrowDown",
-      text: direction === "buy" ? "ACHAT ?" : "VENTE ?",
-      direction,
-      entry,
-      stopLoss,
-      takeProfit
-    };
-  }
-
-  function calculateAnalysis(data) {
-    candlesSeries.setMarkers([]);
-    clearAnalysisLines();if (!premium) { showLockedSignals(); return; }
-    if (!data.length) return;
-    const markers = [];
-    const swingHighs = [], swingLows = [];
-    for (let i = 2; i < data.length - 2; i++) {
-      const c = data[i];
-      if (c.high > data[i-1].high && c.high > data[i-2].high && c.high >= data[i+1].high && c.high >= data[i+2].high) swingHighs.push({index:i, ...c});
-      if (c.low < data[i-1].low && c.low < data[i-2].low && c.low <= data[i+1].low && c.low <= data[i+2].low) swingLows.push({index:i, ...c});
-    }
-
-    if (document.getElementById("showBOS").checked) {
-      let lastHigh = null, lastLow = null, trend = "neutral";
-      let highBroken = false, lowBroken = false;
-      for (let i = 4; i < data.length; i++) {
-        // Un swing est confirmé seulement après deux bougies à droite.
-        const sh = swingHighs.find(s => s.index === i-2);
-        const sl = swingLows.find(s => s.index === i-2);
-        if (sh) { lastHigh = sh.high; highBroken = false; }
-        if (sl) { lastLow = sl.low; lowBroken = false; }
-        if (lastHigh != null && !highBroken && data[i].close > lastHigh) {
-          markers.push({ time:data[i].time, position:"belowBar", color:"#20b887", shape:"arrowUp", text:trend==="bearish"?"CHoCH ↑":"BOS ↑" });
-          trend = "bullish"; highBroken = true;
-        } else if (lastLow != null && !lowBroken && data[i].close < lastLow) {
-          markers.push({ time:data[i].time, position:"aboveBar", color:"#ef5350", shape:"arrowDown", text:trend==="bullish"?"CHoCH ↓":"BOS ↓" });
-          trend = "bearish"; lowBroken = true;
-        }
-      }
-    }
-    const signalMarker = detectSignal(data);
-    if (signalMarker) {
-      // Ne transmettre au graphique que les propriétés attendues pour un marqueur.
-      markers.push({
-        time: signalMarker.time,
-        position: signalMarker.position,
-        color: signalMarker.color,
-        shape: signalMarker.shape,
-        text: signalMarker.text
-      });
-
-      // Lignes de niveaux pour le signal complet le plus récent.
-      analysisLines.push(addPriceLevel(
-        signalMarker.entry,
-        "Entrée " + signalMarker.entry.toFixed(2),
-        "#64a8ff",
-        LightweightCharts.LineStyle.Solid
-      ));
-      analysisLines.push(addPriceLevel(
-        signalMarker.stopLoss,
-        "SL " + signalMarker.stopLoss.toFixed(2),
-        "#ef5350",
-        LightweightCharts.LineStyle.Dashed
-      ));
-      analysisLines.push(addPriceLevel(
-        signalMarker.takeProfit,
-        "TP " + signalMarker.takeProfit.toFixed(2),
-        "#20b887",
-        LightweightCharts.LineStyle.Dashed
-      ));
-    }
-    candlesSeries.setMarkers(markers.sort((a,b)=>a.time-b.time));
-
-    if (document.getElementById("showSR").checked) {
-      const recentHighs = swingHighs.slice(-3), recentLows = swingLows.slice(-3);
-      recentHighs.forEach(s => analysisLines.push(addPriceLevel(s.high, "Résistance", "#ef8d55")));
-      recentLows.forEach(s => analysisLines.push(addPriceLevel(s.low, "Support", "#64a8ff")));
-    }
-    if (document.getElementById("showLiquidity").checked) {
-      const highs = swingHighs.slice(-2), lows = swingLows.slice(-2);
-      highs.forEach(s => analysisLines.push(addPriceLevel(s.high, "Liquidité ↑", "#b28cff", LightweightCharts.LineStyle.Dotted)));
-      lows.forEach(s => analysisLines.push(addPriceLevel(s.low, "Liquidité ↓", "#b28cff", LightweightCharts.LineStyle.Dotted)));
-    }
-    const activeTools = [];
-    if (document.getElementById("showFVG").checked) activeTools.push("FVG");
-    if (document.getElementById("showBOS").checked) activeTools.push("BOS/CHoCH");
-    if (document.getElementById("showLiquidity").checked) activeTools.push("liquidité");
-    if (document.getElementById("showSR").checked) activeTools.push("supports/résistances");
-    const toolStatus = document.getElementById("analysisToolStatus");
-    if (toolStatus) toolStatus.textContent = "Outils activés : " + (activeTools.join(" · ") || "aucun") + " | marqueurs BOS/CHoCH : " + markers.length + " | niveaux tracés : " + analysisLines.length;
-  }
-
-  async function refreshFVG() {
-    if (!document.getElementById("showFVG").checked) {
-      drawFVGOverlay();
-      return;
-    }
-    const selected = Array.from(document.querySelectorAll(".fvg-tf:checked")).map(el => el.value);
-    const updated = new Map();
-    for (const interval of selected) {
-      try {
-        const data = await fetchCandles(interval);
-        updated.set(interval, detectFVG(data, interval).slice(-35));
-      } catch (err) {
-        console.warn("FVG " + interval, err);
-      }
-    }
-    fvgZonesByTimeframe = updated;
-    drawFVGOverlay();
-  }
-
-  async function loadCandles(interval = currentInterval) {
-    const myRequest = ++requestNumber;
-    currentInterval = interval;
-    setStatus("Chargement des bougies " + interval + "…");
-    try {
-      const fresh = await fetchCandles(interval);
-      if (myRequest !== requestNumber) return;
-      candles = fresh;
-      candlesSeries.setData(candles);
-      const last = candles[candles.length - 1];
-      priceEl.textContent = last.close.toFixed(2);
-      priceEl.className = last.close >= last.open ? "price-green" : "price-red";
-      calculateAnalysis(candles);
-      chart.timeScale().fitContent();
-      setStatus("Données chargées · " + candles.length + " bougies · unité " + interval + " · mise à jour automatique chaque minute.");
-      await refreshFVG();
-      drawFVGOverlay();
-    } catch (err) {
-      if (myRequest !== requestNumber) return;
-      setStatus("Impossible de charger les données : " + (err.message || "erreur inconnue") + ". Vérifiez la connexion et le Worker Cloudflare.", true);
-      // Ne pas effacer le dernier graphique valide en cas d'échec réseau.
-    }
-  }
-
-  document.querySelectorAll("#timeframes button").forEach(button => {
-    button.addEventListener("click", () => {
-      document.querySelectorAll("#timeframes button").forEach(b => b.classList.toggle("active", b === button));
-      loadCandles(button.dataset.interval);
-    });
-  });
-
-  document.getElementById("refreshBtn").addEventListener("click", () => loadCandles(currentInterval));
-  ["showFVG","showBOS","showLiquidity","showSR"].forEach(id => {
-    document.getElementById(id).addEventListener("change", () => {
-      if (id === "showFVG") drawFVGOverlay();
-      if (candles.length) calculateAnalysis(candles);
-      drawFVGOverlay();
-    });
-  });
-  document.querySelectorAll(".fvg-tf").forEach(input => input.addEventListener("change", refreshFVG));
-
-  chart.timeScale().subscribeVisibleTimeRangeChange(drawFVGOverlay);
-  chart.subscribeCrosshairMove(() => {});
-  window.addEventListener("tradinganalyzer:pagechange", () => {
-    if (!document.getElementById("analysisPage")?.classList.contains("active")) return;
-    requestAnimationFrame(() => {
-      chart.applyOptions({
-        width: chartWrap.clientWidth || 600,
-        height: chartWrap.clientHeight || 400
-      });
-      drawFVGOverlay();
-    });
-  });
-  if ("ResizeObserver" in window) {
-    resizeObserver = new ResizeObserver(() => {
-      chart.applyOptions({ width: chartWrap.clientWidth, height: chartWrap.clientHeight });
-      drawFVGOverlay();
-    });
-    resizeObserver.observe(chartWrap);
-  } else {
-    window.addEventListener("resize", () => {
-      chart.applyOptions({ width: chartWrap.clientWidth, height: chartWrap.clientHeight });
-      drawFVGOverlay();
-    });
-  }
-
-  loadCandles(currentInterval);
-refreshTimer = window.setInterval(() => {
-  document.getElementById("accessBtn").addEventListener("click", () => {
-    const code = document.getElementById("accessCode").value.trim().toUpperCase();
-    if (code) applyCode(code);
-  });
-  try {
-    const savedCode = localStorage.getItem(CODE_KEY);
-    if (savedCode) applyCode(savedCode);
-  } catch (_) {}
-  if (document.hidden) return;
-  if (!document.getElementById("analysisPage").classList.contains("active")) return;
-  loadCandles(currentInterval);
-}, 60000);
-  })();
-  </script>
-  <script>
-    if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js")
-        .catch((error) => console.error("Erreur service worker :", error));
-    });
-  }
-</script>
-
- 
-
-<script>
-(function () {
-  const translations = {
-    "☰ Menu": "☰ Menu",
-    "⌂ Accueil": "⌂ Home",
-    "Accueil": "Home",
-    "Abonnement": "Subscription",
-    "Analyse": "Analysis",
-    "Actualités": "News",
-    "À propos": "About",
-    "MARCHÉ : XAU/USD": "MARKET: XAU/USD",
-    "Or / dollar américain": "Gold / US dollar",
-    "Connexion au graphique…": "Connecting to chart…",
-    "PAS DE SIGNAL COMPLET": "NO COMPLETE SIGNAL",
-    "Acheter": "Buy",
-    "Vendre": "Sell",
-    "Abonnez-vous": "Subscribe",
-    "Choisir un forfait": "Choose a plan",
-    "Payer": "Pay",
-    "Nom": "Name",
-    "Téléphone": "Phone",
-    "Méthode de paiement": "Payment method",
-    "Sélectionner un forfait": "Select a plan",
-    "7 jours": "7 days",
-    "30 jours": "30 days",
-    "90 jours": "90 days",
-    "Aucun signal complet": "No complete signal",
-    "Entrée": "Entry",
-    "Take Profit": "Take Profit",
-    "Prix d'entrée": "Entry price",
-    "Signaux de trading": "Trading signals",
-    "Analyse technique": "Technical analysis",
-    "Graphique": "Chart",
-    "Paramètres": "Settings",
-    "Se connecter": "Log in",
-    "Déconnexion": "Log out",
-    "Chargement…": "Loading…",
-    "Analyse du marché de l’or · XAU/USD": "Gold market analysis · XAU/USD",
-"Analysez le marché de l’or avec plus de méthode.": "Analyze the gold market with a more structured approach.",
-"Retrouvez au même endroit le graphique XAU/USD, les outils d’analyse technique, les informations d’abonnement et des sources d’actualité sur le marché de l’or.": "Find the XAU/USD chart, technical analysis tools, subscription information, and gold market news sources all in one place.",
-"Ouvrir l’analyse graphique": "Open chart analysis",
-"Voir les abonnements": "View subscriptions",
-"Explorer TradingAnalyzer": "Explore TradingAnalyzer",
-"Choisissez une rubrique pour continuer.": "Choose a section to continue.",
-"Consultez les forfaits et envoyez une demande après votre transfert Mobile Money.": "View the plans and submit a request after your Mobile Money transfer.",
-"Graphique XAU/USD, unités de temps, FVG, BOS/CHoCH et niveaux techniques.": "XAU/USD chart, timeframes, FVG, BOS/CHoCH, and technical levels.",
-"Accédez aux dernières nouvelles et analyses publiées par des sources spécialisées.": "Access the latest news and analysis published by specialized sources.",
-"Découvrez la mission et les limites de TradingAnalyzer.": "Discover TradingAnalyzer’s mission and limitations.",
-"À garder en tête": "Keep in mind",
-"TradingAnalyzer est un outil d’aide à l’analyse, pas un service de conseil financier. Les signaux et niveaux sont indicatifs et peuvent être erronés. Vérifiez toujours les données avant toute décision.": "TradingAnalyzer is an analysis tool, not a financial advisory service. Signals and levels are indicative and may be inaccurate. Always verify the data before making any decision.",
-"Exemples d'analyses techniques": "Technical analysis examples",
-"Découvrez les signaux d'achat et de vente, la liquidité, le BOS/CHoCH, les FVG, l'entrée, le Stop Loss et le Take Profit.": "Explore buy and sell signals, liquidity, BOS/CHoCH, FVGs, entry, Stop Loss, and Take Profit.",
-"Actualités de l’or": "Gold news",
-"Analyse graphique": "Chart analysis",
-"À propos de nous": "About us",
-"Outil d’aide à l’analyse technique de XAU/USD. Les données dépendent de la disponibilité du fournisseur. Aucun conseil financier n’est fourni.": "A technical analysis tool for XAU/USD. Data availability depends on the provider. No financial advice is provided."
-
-
-  };
-
-  const originalTexts = new WeakMap();
-  const lastWrittenTexts = new WeakMap();
-  let currentLanguage = "fr";
-
-  function translateTextNode(node, lang) {
-    const current = node.nodeValue || "";
-
-    if (!originalTexts.has(node)) {
-      originalTexts.set(node, current);
-    } else if (
-      lastWrittenTexts.has(node) &&
-      current !== lastWrittenTexts.get(node)
-    ) {
-      originalTexts.set(node, current);
-    }
-
-    const original = originalTexts.get(node);
-
-    if (lang === "fr") {
-      node.nodeValue = original;
-      lastWrittenTexts.set(node, original);
-      return;
-    }
-
-    const trimmed = original.trim();
-
-    if (!trimmed) return;
-
-    const leading = (original.match(/^\s*/) || [""])[0];
-    const trailing = (original.match(/\s*$/) || [""])[0];
-
-    let translated = translations[trimmed];
-
-    if (!translated) {
-      const iconMatch = trimmed.match(/^([⌂☰]\s*)(.*)$/);
-
-      if (iconMatch && translations[iconMatch[2]]) {
-        translated = iconMatch[1] + translations[iconMatch[2]];
-      }
-    }
-
-    node.nodeValue = translated
-      ? leading + translated + trailing
-      : original;
-
-    lastWrittenTexts.set(node, node.nodeValue);
-  }
-
-  function translatePage(lang) {
-    currentLanguage = lang;
-    document.documentElement.lang = lang;
-
-    document.querySelectorAll("#langFR, #langEN").forEach(function (button) {
-      const active =
-        button.id === (lang === "fr" ? "langFR" : "langEN");
-
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", String(active));
-    });
-
-    const walker = document.createTreeWalker(
-      document.body,
-      NodeFilter.SHOW_TEXT
-    );
-
-    const nodes = [];
-    let node;
-
-    while ((node = walker.nextNode())) {
-      const parent = node.parentElement;
-
-      if (
-        parent &&
-        !parent.closest("script, style, noscript, textarea")
-      ) {
-        nodes.push(node);
-      }
-    }
-
-    nodes.forEach(function (textNode) {
-      translateTextNode(textNode, lang);
-    });
-
-    document.querySelectorAll(
-      "input[placeholder], [title], [aria-label]"
-    ).forEach(function (element) {
-      ["placeholder", "title", "aria-label"].forEach(function (attribute) {
-        if (!element.hasAttribute(attribute)) return;
-
-        const key = "original" + attribute;
-
-        if (!element.dataset[key]) {
-          element.dataset[key] = element.getAttribute(attribute);
-        }
-
-        const original = element.dataset[key];
-
-        if (lang === "fr") {
-          element.setAttribute(attribute, original);
-        } else if (translations[original]) {
-          element.setAttribute(attribute, translations[original]);
-        }
-      });
-    });
-  }
-
-  document.getElementById("langFR")?.addEventListener("click", function () {
-    translatePage("fr");
-  });
-
-  document.getElementById("langEN")?.addEventListener("click", function () {
-    translatePage("en");
-  });
-})();
-</script>
-
- 
-</html>
+  function showPage(pageId, updateAddress = true) {  
+    if (!validPages.has(pageId)) pageId = "homePage";  
+    document.querySelectorAll(".page").forEach(page => {  
+      page.classList.toggle("active", page.id === pageId);  
+    });  
+    document.querySelectorAll(".nav-item[data-page]").forEach(button => {  
+      const selected = button.dataset.page === pageId;  
+      button.classList.toggle("active", selected);  
+      if (selected) button.setAttribute("aria-current", "page");  
+      else button.removeAttribute("aria-current");  
+    });  
+    nav.classList.remove("open");  
+    if (menuToggle) menuToggle.setAttribute("aria-expanded", "false");  
+    if (updateAddress && window.history && window.history.replaceState) {  
+      window.history.replaceState(null, "", "#" + pageId);  
+    }  
+    window.scrollTo({ top: 0, behavior: "smooth" });  
+    window.dispatchEvent(new Event("tradinganalyzer:pagechange"));  
+  }  
+  
+  document.querySelectorAll(".nav-item[data-page], [data-open-page]").forEach(button => {  
+    button.addEventListener("click", () => showPage(button.dataset.page || button.dataset.openPage));  
+  });  
+  
+  if (menuToggle) {  
+    menuToggle.addEventListener("click", () => {  
+      const opened = nav.classList.toggle("open");  
+      menuToggle.setAttribute("aria-expanded", String(opened));  
+    });  
+  }  
+  
+  const initialPage = window.location.hash.replace(/^#/, "");  
+  if (validPages.has(initialPage)) showPage(initialPage, false);  
+})();  
+</script>  <script>  
+(() => {  
+  "use strict";  
+  
+  
+  // Formulaire Premium : envoie une demande au Worker de paiement.  
+  // Le transfert reste vérifié manuellement ; aucun paiement n'est prélevé ici.  
+  const PAYMENT_API = "https://tradinganalyzer-paymentd5eb.cedricadjaito.workers.dev";  
+  const subscribeBtn = document.getElementById("subscribeBtn");  
+  const paymentMethod = document.getElementById("paymentMethod");  
+  const planSelect = document.getElementById("planSelect");  
+  const premiumStatus = document.getElementById("premiumStatus");  
+  const paymentInstructions = document.getElementById("paymentInstructions");  
+  let paymentInfo = null;  
+  const planAmounts = { "7_days": 2500, "30_days": 5000, "90_days": 10000 };  
+  
+  function updatePaymentInstructions() {  
+    if (!paymentInstructions) return;  
+    const method = paymentMethod.value;  
+    const recipient = paymentInfo && paymentInfo.methods ? paymentInfo.methods[method] : null;  
+    const amount = planAmounts[planSelect.value];  
+    if (!recipient || !amount) {  
+      paymentInstructions.textContent = "Le numéro de réception est indisponible. Réessayez plus tard.";  
+      return;  
+    }  
+    paymentInstructions.textContent = "Transférez " + amount.toLocaleString("fr-FR") +  
+      " FCFA via " + method + " au numéro " + recipient +  
+      ". Après le transfert, saisissez la référence figurant sur votre reçu.";  
+  }  
+  
+  async function loadPaymentInfo() {  
+    try {  
+      const response = await fetch(PAYMENT_API + "/api/payment-info", { cache: "no-store" });  
+      const data = await response.json();  
+      if (!response.ok || !data.methods || !data.plans) {  
+        throw new Error("Informations de paiement indisponibles.");  
+      }  
+      paymentInfo = data;  
+      updatePaymentInstructions();  
+    } catch (error) {  
+      paymentInstructions.textContent = "Impossible de charger les informations de paiement. Vérifiez la connexion et réessayez.";  
+    }  
+  }  
+  
+  if (subscribeBtn && paymentMethod && planSelect && premiumStatus && paymentInstructions) {  
+    paymentMethod.addEventListener("change", updatePaymentInstructions);  
+    planSelect.addEventListener("change", updatePaymentInstructions);  
+  
+    subscribeBtn.addEventListener("click", async () => {  
+      const customerName = document.getElementById("customerName").value.trim();  
+      const customerPhone = document.getElementById("customerPhone").value.trim();  
+      const transactionReference = document.getElementById("transactionReference").value.trim();  
+      if (!customerName || !customerPhone || !transactionReference) {  
+        premiumStatus.textContent = "Veuillez renseigner votre nom, votre numéro de téléphone et la référence de transaction.";  
+        return;  
+      }  
+      if (!paymentInfo || !paymentInfo.methods || !paymentInfo.methods[paymentMethod.value]) {  
+        premiumStatus.textContent = "Les informations de paiement ne sont pas disponibles. Réessayez plus tard.";  
+        return;  
+      }  
+      if (!planAmounts[planSelect.value]) {  
+        premiumStatus.textContent = "Veuillez choisir un forfait valide.";  
+        return;  
+      }  
+      const amount = planAmounts[planSelect.value];  
+      if (!window.confirm("Confirmez-vous avoir transféré " + amount.toLocaleString("fr-FR") +  
+        " FCFA via " + paymentMethod.value + " ?")) return;  
+  
+      subscribeBtn.disabled = true;  
+      premiumStatus.textContent = "Envoi de la demande en cours…";  
+      try {  
+        const response = await fetch(PAYMENT_API + "/api/payments", {  
+          method: "POST",  
+          headers: { "Content-Type": "application/json" },  
+          body: JSON.stringify({  
+            customer_name: customerName,  
+            customer_phone: customerPhone,  
+            payment_method: paymentMethod.value,  
+            plan: planSelect.value,  
+                        transaction_reference: transactionReference,  
+            referral_code: document.getElementById("referralCode").value.trim().toUpperCase()  
+          })  
+        });  
+        const result = await response.json().catch(() => ({}));  
+        if (!response.ok) throw new Error(result.error || "Le serveur a refusé la demande (" + response.status + ").");  
+        premiumStatus.textContent = "Demande envoyée. Elle doit être vérifiée manuellement. Votre abonnement n’est pas encore activé. Conservez votre reçu.";  
+      } catch (error) {  
+        premiumStatus.textContent = "La demande n’a pas pu être confirmée : " +  
+          (error.message || "erreur de connexion") +  
+          ". Vérifiez votre connexion. Si vous réessayez, évitez d’envoyer une demande en double.";  
+      } finally {  
+        subscribeBtn.disabled = false;  
+      }  
+    });  
+    loadPaymentInfo();  
+  }  
+  
+  // Adresse du Worker Cloudflare déjà configuré. La clé API reste côté serveur.  
+  const API_URL = "https://tradinganalyzer-api.cedricadjaito.workers.dev";  
+  let premium = false;  
+  const CODE_KEY = "ta_access_code";  
+  
+  function showLockedSignals() {  
+    const badge = document.getElementById("signalBadge");  
+    badge.className = "signal-badge neutral";  
+    badge.textContent = "PREMIUM";  
+    document.getElementById("signalSummary").textContent = "Signaux Entrée / SL / TP réservés aux abonnés Premium.";  
+    document.getElementById("signalChecks").innerHTML = "<li>Entrez votre code d’accès pour débloquer FVG, BOS/CHoCH, liquidités, supports/résistances et signaux.</li>";  
+    const t = document.getElementById("analysisToolStatus");  
+    if (t) t.textContent = "Outils avancés verrouillés : abonnement Premium requis.";  
+  }  
+  
+  async function applyCode(code) {  
+    const msg = document.getElementById("accessMsg");  
+    try {  
+      const response = await fetch(PAYMENT_API + "/api/access/check?code=" + encodeURIComponent(code), { cache: "no-store" });  
+      const r = await response.json();  
+      if (r.valid) {  
+        premium = true;  
+        try { localStorage.setItem(CODE_KEY, code); } catch (_) {}  
+        msg.textContent = "Accès Premium actif jusqu’au " + new Date(r.expires_at).toLocaleDateString("fr-FR") + "."; if (r.referral_code) msg.textContent += " Votre code de parrainage : " + r.referral_code + " (7 jours offerts pour chaque ami qui s’abonne avec ce code).";  
+      } else {  
+        premium = false;  
+        try { localStorage.removeItem(CODE_KEY); } catch (_) {}  
+        msg.textContent = r.expired ? "Ce code a expiré." : "Code invalide.";  
+      }  
+    } catch (e) {  
+      msg.textContent = "Vérification impossible. Réessayez.";  
+      return;  
+    }  
+    if (candles.length) calculateAnalysis(candles);  
+    refreshFVG();  
+  }  
+  const INTERVALS = ["1min", "5min", "15min", "1h", "4h", "1day"];  
+  const FVG_INTERVALS = ["15min", "1h", "4h", "1day"];  
+  const statusEl = document.getElementById("status");  
+  const chartEl = document.getElementById("chart");  
+  const chartWrap = document.getElementById("chartWrap");  
+  const overlay = document.getElementById("fvgOverlay");  
+  const priceEl = document.getElementById("lastPrice");  
+  
+  let currentInterval = "5min";  
+  let candles = [];  
+  let fvgZonesByTimeframe = new Map();  
+  let refreshTimer = null;  
+  let requestNumber = 0;  
+  let resizeObserver = null;  
+  
+  if (!window.LightweightCharts) {  
+    statusEl.textContent = "Erreur : la bibliothèque du graphique n’a pas pu être chargée. Vérifiez votre connexion Internet.";  
+    statusEl.classList.add("error");  
+    return;  
+  }  
+  
+  const chart = LightweightCharts.createChart(chartEl, {  
+    width: chartEl.clientWidth || 600,  
+    height: chartEl.clientHeight || 400,  
+    layout: { background: { type: "solid", color: "#0b1220" }, textColor: "#d9e3f0" },  
+    grid: { vertLines: { color: "#1a2638" }, horzLines: { color: "#1a2638" } },  
+    rightPriceScale: { borderColor: "#26354a" },  
+    timeScale: { borderColor: "#26354a", timeVisible: true, secondsVisible: false, rightOffset: 5 },  
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },  
+    handleScroll: true,  
+    handleScale: true  
+  });  
+  
+  const candlesSeries = chart.addCandlestickSeries({  
+    upColor: "#20b887",  
+    downColor: "#ef5350",  
+    borderUpColor: "#20b887",  
+    borderDownColor: "#ef5350",  
+    wickUpColor: "#20b887",  
+    wickDownColor: "#ef5350",  
+    priceLineVisible: true,  
+    lastValueVisible: true  
+  });  
+  
+  function setStatus(message, isError = false) {  
+    statusEl.textContent = message;  
+    statusEl.classList.toggle("error", isError);  
+  }  
+  
+  function normaliseCandles(input) {  
+    if (!Array.isArray(input)) return [];  
+    return input.map(c => {  
+      let t = c.time;  
+      if (typeof t === "string") {  
+        const parsed = Date.parse(t);  
+        t = Number.isFinite(parsed) ? Math.floor(parsed / 1000) : NaN;  
+      } else if (typeof t === "number" && t > 100000000000) {  
+        t = Math.floor(t / 1000);  
+      }  
+      return {  
+        time: t,  
+        open: Number(c.open),  
+        high: Number(c.high),  
+        low: Number(c.low),  
+        close: Number(c.close)  
+      };  
+    }).filter(c => Number.isFinite(c.time) && [c.open,c.high,c.low,c.close].every(Number.isFinite))  
+      .sort((a,b) => a.time - b.time)  
+      .filter((c,i,arr) => i === 0 || c.time !== arr[i-1].time);  
+  }  
+  
+  async function fetchCandles(interval) {  
+    const url = API_URL + "/?interval=" + encodeURIComponent(interval);   
+    
+    const response = await fetch(url, { cache: "no-store" });  
+    const data = await response.json();  
+    if (!response.ok) throw new Error(data.error || "Erreur serveur (" + response.status + ")");  
+    const parsed = normaliseCandles(data.candles);  
+    if (!parsed.length) throw new Error(data.error || "Le serveur n’a renvoyé aucune bougie.");  
+    return parsed;  
+  }  
+  
+  function detectFVG(data, interval) {  
+    const zones = [];  
+    for (let i = 2; i < data.length; i++) {  
+      const first = data[i - 2], third = data[i];  
+      // FVG haussier : le plus bas de la troisième bougie dépasse le plus haut de la première.  
+      if (third.low > first.high) {  
+        zones.push({ type: "bullish", interval, low: first.high, high: third.low, time: third.time });  
+      }  
+      // FVG baissier : le plus haut de la troisième bougie est sous le plus bas de la première.  
+      if (third.high < first.low) {  
+        zones.push({ type: "bearish", interval, low: third.high, high: first.low, time: third.time });  
+      }  
+    }  
+    return zones;  
+  }  
+  
+  function intervalSeconds(interval) {  
+    return ({ "1min":60, "5min":300, "15min":900, "1h":3600, "4h":14400, "1day":86400 })[interval] || 300;  
+  }  
+  
+  function drawFVGOverlay() {  
+    overlay.innerHTML = "";  
+    if (!premium || !document.getElementById("showFVG").checked || !candles.length) return;  
+  
+    const width = chartWrap.clientWidth;  
+    const height = chartWrap.clientHeight;  
+    overlay.setAttribute("viewBox", `0 0 ${width} ${height}`);  
+    overlay.setAttribute("preserveAspectRatio", "none");  
+  
+    // Les coordonnées de timeToCoordinate sont déjà relatives à la zone de tracé.  
+    const plotWidth = chart.timeScale().width();  
+    const plotLeft = 0;  
+    const visible = chart.timeScale().getVisibleRange();  
+    if (!visible) return;  
+    const from = typeof visible.from === "number" ? visible.from : visible.from.timestamp;  
+    const to = typeof visible.to === "number" ? visible.to : visible.to.timestamp;  
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return;  
+  
+    const selected = new Set(Array.from(document.querySelectorAll(".fvg-tf:checked")).map(el => el.value));  
+    for (const [interval, zones] of fvgZonesByTimeframe.entries()) {  
+      if (!selected.has(interval)) continue;  
+      const step = intervalSeconds(interval);  
+      // Limiter les zones aux bougies récentes visibles; éviter les coordonnées futures inexistantes.  
+      for (const zone of zones) {  
+        const zoneStart = zone.time;  
+        const zoneEnd = zone.time + step * 3;  
+        if (zoneEnd < from || zoneStart > to) continue;  
+  
+        const x1c = chart.timeScale().timeToCoordinate(zoneStart);  
+        const x2c = chart.timeScale().timeToCoordinate(Math.min(zoneEnd, to));  
+        const y1 = candlesSeries.priceToCoordinate(zone.high);  
+        const y2 = candlesSeries.priceToCoordinate(zone.low);  
+        if (y1 == null || y2 == null) continue;  
+  
+        let left = x1c == null ? 0 : x1c;  
+        let right = x2c == null ? Math.min(width, plotWidth) : x2c;  
+        left = Math.max(0, Math.min(width, left));  
+        right = Math.max(0, Math.min(width, right));  
+        if (right - left < 2) right = Math.min(width, left + Math.max(8, plotWidth / Math.max(candles.length, 1) * 3));  
+        const top = Math.max(0, Math.min(height, Math.min(y1, y2)));  
+        const bottom = Math.max(0, Math.min(height, Math.max(y1, y2)));  
+        if (right <= left || bottom <= top) continue;  
+  
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");  
+        const color = zone.type === "bullish" ? "#20b887" : "#ef5350";  
+        rect.setAttribute("x", String(left));  
+        rect.setAttribute("y", String(top));  
+        rect.setAttribute("width", String(right-left));  
+        rect.setAttribute("height", String(Math.max(2,bottom-top)));  
+        rect.setAttribute("fill", color);  
+        rect.setAttribute("fill-opacity", "0.18");  
+        rect.setAttribute("stroke", color);  
+        rect.setAttribute("stroke-width", "1");  
+        rect.setAttribute("data-interval", interval);  
+        overlay.appendChild(rect);  
+      }  
+    }  
+  }  
+  
+  function addPriceLevel(price, title, color, style = LightweightCharts.LineStyle.Dashed) {  
+    return candlesSeries.createPriceLine({  
+      price, title, color, lineWidth: 1, lineStyle: style,  
+      axisLabelVisible: true, lineVisible: true  
+    });  
+  }  
+  
+  let analysisLines = [];  
+  function clearAnalysisLines() {  
+    analysisLines.forEach(line => { try { candlesSeries.removePriceLine(line); } catch (_) {} });  
+    analysisLines = [];  
+  }  
+  
+  function ema(values, period) {  
+    if (values.length < period) return null;  
+    const k = 2 / (period + 1);  
+    let value = values.slice(0, period).reduce((sum, n) => sum + n, 0) / period;  
+    for (let i = period; i < values.length; i++) value = values[i] * k + value * (1 - k);  
+    return value;  
+  }  
+  
+  function detectSignal(data) {  
+    const badge = document.getElementById("signalBadge");  
+    const summary = document.getElementById("signalSummary");  
+    const checks = document.getElementById("signalChecks");  
+    const closeValues = data.map(c => c.close);  
+    const fastEma = ema(closeValues, 20);  
+    const slowEma = ema(closeValues, 50);  
+  
+    const showChecks = items => {  
+      checks.innerHTML = items.map(item =>  
+        `<li class="${item.pass ? "pass" : "fail"}">${item.pass ? "✓" : "○"} ${item.label}</li>`  
+      ).join("");  
+    };  
+    const setBadge = (type, text) => {  
+      badge.className = "signal-badge " + type;  
+      badge.textContent = text;  
+    };  
+    const formatPrice = price => Number(price).toFixed(2);  
+  
+    if (data.length < 55 || fastEma == null || slowEma == null) {  
+      setBadge("neutral", "DONNÉES INSUFFISANTES");  
+      summary.textContent = "Il faut au moins 55 bougies pour évaluer les conditions.";  
+      showChecks([{pass:false, label:"Attendre davantage de données avant de calculer les signaux."}]);  
+      return null;  
+    }  
+  
+    const lastIndex = data.length - 1;  
+    const last = data[lastIndex];  
+    const recentCandles = data.slice(Math.max(0, lastIndex - 10), lastIndex + 1);  
+    const recentLow = Math.min(...recentCandles.map(c => c.low));  
+    const recentHigh = Math.max(...recentCandles.map(c => c.high));  
+    const swingHighs = [];  
+    const swingLows = [];  
+  
+    for (let i = 2; i < data.length - 2; i++) {  
+      if (data[i].high > data[i-1].high && data[i].high > data[i-2].high &&  
+          data[i].high >= data[i+1].high && data[i].high >= data[i+2].high) {  
+        swingHighs.push({index:i, price:data[i].high});  
+      }  
+      if (data[i].low < data[i-1].low && data[i].low < data[i-2].low &&  
+          data[i].low <= data[i+1].low && data[i].low <= data[i+2].low) {  
+        swingLows.push({index:i, price:data[i].low});  
+      }  
+    }  
+  
+    const trend = fastEma > slowEma ? "bullish" : fastEma < slowEma ? "bearish" : "neutral";  
+    let bosDirection = null;  
+    for (let i = Math.max(2, lastIndex - 8); i <= lastIndex; i++) {  
+      const priorHigh = swingHighs.filter(s => s.index < i).slice(-1)[0];  
+      const priorLow = swingLows.filter(s => s.index < i).slice(-1)[0];  
+      if (priorHigh && data[i].close > priorHigh.price) bosDirection = "bullish";  
+      if (priorLow && data[i].close < priorLow.price) bosDirection = "bearish";  
+    }  
+  
+    // Balayage de liquidité : mèche au-delà d'un swing, puis clôture de retour dans le niveau.  
+    let sweepDirection = null;  
+    for (let i = Math.max(2, lastIndex - 5); i <= lastIndex; i++) {  
+      const priorHigh = swingHighs.filter(s => s.index < i && s.index >= i - 15).slice(-1)[0];  
+      const priorLow = swingLows.filter(s => s.index < i && s.index >= i - 15).slice(-1)[0];  
+      if (priorLow && data[i].low < priorLow.price && data[i].close > priorLow.price) sweepDirection = "bullish";  
+      if (priorHigh && data[i].high > priorHigh.price && data[i].close < priorHigh.price) sweepDirection = "bearish";  
+    }  
+  
+    // Cherche une FVG récente dans l'unité courante, puis vérifie le retour du prix dans sa zone.  
+    const localZones = detectFVG(data, currentInterval)  
+      .filter(z => z.time >= data[Math.max(0, lastIndex - 20)].time);  
+    const matchingZone = localZones.slice().reverse().find(z => last.close >= z.low && last.close <= z.high);  
+    const fvgDirection = matchingZone ? matchingZone.type : null;  
+  
+    const buyChecks = [  
+      {pass:trend === "bullish", label:"Tendance haussière (EMA 20 au-dessus de l’EMA 50)"},  
+      {pass:bosDirection === "bullish", label:"BOS haussier récent"},  
+      {pass:sweepDirection === "bullish", label:"Balayage de liquidité sous un creux puis clôture au-dessus"},  
+      {pass:fvgDirection === "bullish", label:"Retour du prix dans une FVG haussière récente"}  
+    ];  
+    const sellChecks = [  
+      {pass:trend === "bearish", label:"Tendance baissière (EMA 20 sous l’EMA 50)"},  
+      {pass:bosDirection === "bearish", label:"BOS baissier récent"},  
+      {pass:sweepDirection === "bearish", label:"Balayage de liquidité au-dessus d’un sommet puis clôture en dessous"},  
+      {pass:fvgDirection === "bearish", label:"Retour du prix dans une FVG baissière récente"}  
+    ];  
+  
+    const buyReady = buyChecks.every(item => item.pass);  
+    const sellReady = sellChecks.every(item => item.pass);  
+  
+    if (!buyReady && !sellReady) {  
+      setBadge("neutral", "PAS DE SIGNAL COMPLET");  
+      summary.textContent = "Aucun signal complet pour l’instant. Les critères manquants sont listés ci-dessous.";  
+      showChecks(trend === "bearish" ? sellChecks : buyChecks);  
+      return null;  
+    }  
+  
+    const direction = buyReady ? "buy" : "sell";  
+    const entry = last.close;  
+    // SL derrière l'extrême récent avec une petite marge; TP vise 2 fois le risque.  
+    const buffer = Math.max(entry * 0.0005, 0.01);  
+    const stopLoss = direction === "buy" ? recentLow - buffer : recentHigh + buffer;  
+    const risk = Math.abs(entry - stopLoss);  
+    if (!Number.isFinite(risk) || risk <= 0) {  
+      setBadge("neutral", "NIVEAUX INDISPONIBLES");  
+      summary.textContent = "Impossible de calculer un risque valide avec les dernières bougies.";  
+      showChecks(buyReady ? buyChecks : sellChecks);  
+      return null;  
+    }  
+    const takeProfit = direction === "buy" ? entry + risk * 2 : entry - risk * 2;  
+  
+    if (direction === "buy") {  
+      setBadge("buy", "ACHAT POTENTIEL");  
+      showChecks(buyChecks);  
+    } else {  
+      setBadge("sell", "VENTE POTENTIELLE");  
+      showChecks(sellChecks);  
+    }  
+  
+    summary.innerHTML =  
+      `Entrée indicative : <strong>${formatPrice(entry)}</strong><br>` +  
+      `Stop Loss (SL) : <strong>${formatPrice(stopLoss)}</strong><br>` +  
+      `Take Profit (TP) : <strong>${formatPrice(takeProfit)}</strong><br>` +  
+      `<span class="note">Ratio risque/rendement théorique : 1:2 · Unités : ${currentInterval}</span>`;  
+  
+    return {  
+      time: last.time,  
+      position: direction === "buy" ? "belowBar" : "aboveBar",  
+      color: direction === "buy" ? "#20b887" : "#ef5350",  
+      shape: direction === "buy" ? "arrowUp" : "arrowDown",  
+      text: direction === "buy" ? "ACHAT ?" : "VENTE ?",  
+      direction,  
+      entry,  
+      stopLoss,  
+      takeProfit  
+    };  
+  }  
+  
+  function calculateAnalysis(data) {  
+    candlesSeries.setMarkers([]);  
+    clearAnalysisLines();if (!premium) { showLockedSignals(); return; }  
+    if (!data.length) return;  
+    const markers = [];  
+    const swingHighs = [], swingLows = [];  
+    for (let i = 2; i < data.length - 2; i++) {  
+      const c = data[i];  
+      if (c.high > data[i-1].high && c.high > data[i-2].high && c.high >= data[i+1].high && c.high >= data[i+2].high) swingHighs.push({index:i, ...c});  
+      if (c.low < data[i-1].low && c.low < data[i-2].low && c.low <= data[i+1].low && c.low <= data[i+2].low) swingLows.push({index:i, ...c});  
+    }  
+  
+    if (document.getElementById("showBOS").checked) {  
+      let lastHigh = null, lastLow = null, trend = "neutral";  
+      let highBroken = false, lowBroken = false;  
+      for (let i = 4; i < data.length; i++) {  
+        // Un swing est confirmé seulement après deux bougies à droite.  
+        const sh = swingHighs.find(s => s.index === i-2);  
+        const sl = swingLows.find(s => s.index === i-2);  
+        if (sh) { lastHigh = sh.high; highBroken = false; }  
+        if (sl) { lastLow = sl.low; lowBroken = false; }  
+        if (lastHigh != null && !highBroken && data[i].close > lastHigh) {  
+          markers.push({ time:data[i].time, position:"belowBar", color:"#20b887", shape:"arrowUp", text:trend==="bearish"?"CHoCH ↑":"BOS ↑" });  
+          trend = "bullish"; highBroken = true;  
+        } else if (lastLow != null && !lowBroken && data[i].close < lastLow) {  
+          markers.push({ time:data[i].time, position:"aboveBar", color:"#ef5350", shape:"arrowDown", text:trend==="bullish"?"CHoCH ↓":"BOS ↓" });  
+          trend = "bearish"; lowBroken = true;  
+        }  
+      }  
+    }  
+    const signalMarker = detectSignal(data);  
+    if (signalMarker) {  
+      // Ne transmettre au graphique que les propriétés attendues pour un marqueur.  
+      markers.push({  
+        time: signalMarker.time,  
+        position: signalMarker.position,  
+        color: signalMarker.color,  
+        shape: signalMarker.shape,  
+        text: signalMarker.text  
+      });  
+  
+      // Lignes de niveaux pour le signal complet le plus récent.  
+      analysisLines.push(addPriceLevel(  
+        signalMarker.entry,  
+        "Entrée " + signalMarker.entry.toFixed(2),  
+        "#64a8ff",  
+        LightweightCharts.LineStyle.Solid  
+      ));  
+      analysisLines.push(addPriceLevel(  
+        signalMarker.stopLoss,  
+        "SL " + signalMarker.stopLoss.toFixed(2),  
+        "#ef5350",  
+        LightweightCharts.LineStyle.Dashed  
+      ));  
+      analysisLines.push(addPriceLevel(  
+        signalMarker.takeProfit,  
+        "TP " + signalMarker.takeProfit.toFixed(2),  
+        "#20b887",  
+        LightweightCharts.LineStyle.Dashed  
+      ));  
+    }  
+    candlesSeries.setMarkers(markers.sort((a,b)=>a.time-b.time));  
+  
+    if (document.getElementById("showSR").checked) {  
+      const recentHighs = swingHighs.slice(-3), recentLows = swingLows.slice(-3);  
+      recentHighs.forEach(s => analysisLines.push(addPriceLevel(s.high, "Résistance", "#ef8d55")));  
+      recentLows.forEach(s => analysisLines.push(addPriceLevel(s.low, "Support", "#64a8ff")));  
+    }  
+    if (document.getElementById("showLiquidity").checked) {  
+      const highs = swingHighs.slice(-2), lows = swingLows.slice(-2);  
+      highs.forEach(s => analysisLines.push(addPriceLevel(s.high, "Liquidité ↑", "#b28cff", LightweightCharts.LineStyle.Dotted)));  
+      lows.forEach(s => analysisLines.push(addPriceLevel(s.low, "Liquidité ↓", "#b28cff", LightweightCharts.LineStyle.Dotted)));  
+    }  
+    const activeTools = [];  
+    if (document.getElementById("showFVG").checked) activeTools.push("FVG");  
+    if (document.getElementById("showBOS").checked) activeTools.push("BOS/CHoCH");  
+    if (document.getElementById("showLiquidity").checked) activeTools.push("liquidité");  
+    if (document.getElementById("showSR").checked) activeTools.push("supports/résistances");  
+    const toolStatus = document.getElementById("analysisToolStatus");  
+    if (toolStatus) toolStatus.textContent = "Outils activés : " + (activeTools.join(" · ") || "aucun") + " | marqueurs BOS/CHoCH : " + markers.length + " | niveaux tracés : " + analysisLines.length;  
+  }  
+  
+  async function refreshFVG() {  
+    if (!document.getElementById("showFVG").checked) {  
+      drawFVGOverlay();  
+      return;  
+    }  
+    const selected = Array.from(document.querySelectorAll(".fvg-tf:checked")).map(el => el.value);  
+    const updated = new Map();  
+    for (const interval of selected) {  
+      try {  
+        const data = await fetchCandles(interval);  
+        updated.set(interval, detectFVG(data, interval).slice(-35));  
+      } catch (err) {  
+        console.warn("FVG " + interval, err);  
+      }  
+    }  
+    fvgZonesByTimeframe = updated;  
+    drawFVGOverlay();  
+  }  
+  
+  async function loadCandles(interval = currentInterval) {  
+    const myRequest = ++requestNumber;  
+    currentInterval = interval;  
+    setStatus("Chargement des bougies " + interval + "…");  
+    try {  
+      const fresh = await fetchCandles(interval);  
+      if (myRequest !== requestNumber) return;  
+      candles = fresh;  
+      candlesSeries.setData(candles);  
+      const last = candles[candles.length - 1];  
+      priceEl.textContent = last.close.toFixed(2);  
+      priceEl.className = last.close >= last.open ? "price-green" : "price-red";  
+      calculateAnalysis(candles);  
+      chart.timeScale().fitContent();  
+      setStatus("Données chargées · " + candles.length + " bougies · unité " + interval + " · mise à jour automatique chaque minute.");  
+      await refreshFVG();  
+      drawFVGOverlay();  
+    } catch (err) {  
+      if (myRequest !== requestNumber) return;  
+      setStatus("Impossible de charger les données : " + (err.message || "erreur inconnue") + ". Vérifiez la connexion et le Worker Cloudflare.", true);  
+      // Ne pas effacer le dernier graphique valide en cas d'échec réseau.  
+    }  
+  }  
+  
+  document.querySelectorAll("#timeframes button").forEach(button => {  
+    button.addEventListener("click", () => {  
+      document.querySelectorAll("#timeframes button").forEach(b => b.classList.toggle("active", b === button));  
+      loadCandles(button.dataset.interval);  
+    });  
+  });  
+  
+  document.getElementById("refreshBtn").addEventListener("click", () => loadCandles(currentInterval));  
+  ["showFVG","showBOS","showLiquidity","showSR"].forEach(id => {  
+    document.getElementById(id).addEventListener("change", () => {  
+      if (id === "showFVG") drawFVGOverlay();  
+      if (candles.length) calculateAnalysis(candles);  
+      drawFVGOverlay();  
+    });  
+  });  
+  document.querySelectorAll(".fvg-tf").forEach(input => input.addEventListener("change", refreshFVG));  
+  
+  chart.timeScale().subscribeVisibleTimeRangeChange(drawFVGOverlay);  
+  chart.subscribeCrosshairMove(() => {});  
+  window.addEventListener("tradinganalyzer:pagechange", () => {  
+    if (!document.getElementById("analysisPage")?.classList.contains("active")) return;  
+    requestAnimationFrame(() => {  
+      chart.applyOptions({  
+        width: chartWrap.clientWidth || 600,  
+        height: chartWrap.clientHeight || 400  
+      });  
+      drawFVGOverlay();  
+    });  
+  });  
+  if ("ResizeObserver" in window) {  
+    resizeObserver = new ResizeObserver(() => {  
+      chart.applyOptions({ width: chartWrap.clientWidth, height: chartWrap.clientHeight });  
+      drawFVGOverlay();  
+    });  
+    resizeObserver.observe(chartWrap);  
+  } else {  
+    window.addEventListener("resize", () => {  
+      chart.applyOptions({ width: chartWrap.clientWidth, height: chartWrap.clientHeight });  
+      drawFVGOverlay();  
+    });  
+  }  
+  
+  loadCandles(currentInterval);  
+refreshTimer = window.setInterval(() => {  
+  document.getElementById("accessBtn").addEventListener("click", () => {  
+    const code = document.getElementById("accessCode").value.trim().toUpperCase();  
+    if (code) applyCode(code);  
+  });  
+  try {  
+    const savedCode = localStorage.getItem(CODE_KEY);  
+    if (savedCode) applyCode(savedCode);  
+  } catch (_) {}  
+  if (document.hidden) return;  
+  if (!document.getElementById("analysisPage").classList.contains("active")) return;  
+  loadCandles(currentInterval);  
+}, 60000);  
+  })();  
+  </script>    <script>  
+    if ("serviceWorker" in navigator) {  
+    window.addEventListener("load", () => {  
+      navigator.serviceWorker.register("./service-worker.js")  
+        .catch((error) => console.error("Erreur service worker :", error));  
+    });  
+  }  
+</script>  </body>  
+</html>  
