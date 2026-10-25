@@ -1044,11 +1044,10 @@ refreshTimer = window.setInterval(() => {
 </script>
 
  
+
 <script>
 (function () {
-  
-const translations = {
-  en: {
+  const translations = {
     "☰ Menu": "☰ Menu",
     "⌂ Accueil": "⌂ Home",
     "Accueil": "Home",
@@ -1068,69 +1067,124 @@ const translations = {
     "Nom": "Name",
     "Téléphone": "Phone",
     "Méthode de paiement": "Payment method",
-    "Accueil ": "Home ",
-    "Abonnement ": "Subscription ",
-    "Analyse ": "Analysis ",
-    "Actualités ": "News ",
-    "À propos ": "About ",
     "Sélectionner un forfait": "Select a plan",
     "7 jours": "7 days",
     "30 jours": "30 days",
     "90 jours": "90 days",
-    "MTN MoMo": "MTN MoMo",
-    "Moov Money": "Moov Money",
     "Aucun signal complet": "No complete signal",
     "Entrée": "Entry",
-    "Stop Loss": "Stop Loss",
-    "Take Profit": "Take Profit"
-  },
-  fr: {}
-};
+    "Take Profit": "Take Profit",
+    "Prix d'entrée": "Entry price",
+    "Signaux de trading": "Trading signals",
+    "Analyse technique": "Technical analysis",
+    "Graphique": "Chart",
+    "Paramètres": "Settings",
+    "Se connecter": "Log in",
+    "Déconnexion": "Log out",
+    "Chargement…": "Loading…"
+  };
 
+  const originalTexts = new WeakMap();
+  const lastWrittenTexts = new WeakMap();
+  let currentLanguage = "fr";
+
+  function translateTextNode(node, lang) {
+    const current = node.nodeValue || "";
+
+    if (!originalTexts.has(node)) {
+      originalTexts.set(node, current);
+    } else if (
+      lastWrittenTexts.has(node) &&
+      current !== lastWrittenTexts.get(node)
+    ) {
+      originalTexts.set(node, current);
+    }
+
+    const original = originalTexts.get(node);
+
+    if (lang === "fr") {
+      node.nodeValue = original;
+      lastWrittenTexts.set(node, original);
+      return;
+    }
+
+    const trimmed = original.trim();
+
+    if (!trimmed) return;
+
+    const leading = (original.match(/^\s*/) || [""])[0];
+    const trailing = (original.match(/\s*$/) || [""])[0];
+
+    let translated = translations[trimmed];
+
+    if (!translated) {
+      const iconMatch = trimmed.match(/^([⌂☰]\s*)(.*)$/);
+
+      if (iconMatch && translations[iconMatch[2]]) {
+        translated = iconMatch[1] + translations[iconMatch[2]];
+      }
+    }
+
+    node.nodeValue = translated
+      ? leading + translated + trailing
+      : original;
+
+    lastWrittenTexts.set(node, node.nodeValue);
+  }
 
   function translatePage(lang) {
+    currentLanguage = lang;
     document.documentElement.lang = lang;
 
     document.querySelectorAll("#langFR, #langEN").forEach(function (button) {
-      const active = button.id === (lang === "fr" ? "langFR" : "langEN");
+      const active =
+        button.id === (lang === "fr" ? "langFR" : "langEN");
+
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));
     });
 
-    document.querySelectorAll("body *").forEach(function (element) {
-      if (element.children.length === 0) {
-        if (!element.dataset.originalText) {
-          element.dataset.originalText = element.textContent;
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT
+    );
+
+    const nodes = [];
+    let node;
+
+    while ((node = walker.nextNode())) {
+      const parent = node.parentElement;
+
+      if (
+        parent &&
+        !parent.closest("script, style, noscript, textarea")
+      ) {
+        nodes.push(node);
+      }
+    }
+
+    nodes.forEach(function (textNode) {
+      translateTextNode(textNode, lang);
+    });
+
+    document.querySelectorAll(
+      "input[placeholder], [title], [aria-label]"
+    ).forEach(function (element) {
+      ["placeholder", "title", "aria-label"].forEach(function (attribute) {
+        if (!element.hasAttribute(attribute)) return;
+
+        const key = "original" + attribute;
+
+        if (!element.dataset[key]) {
+          element.dataset[key] = element.getAttribute(attribute);
         }
 
-const originalText = element.dataset.originalText;
-const original = originalText.trim();
-const cleanText = original.replace(/^[⌂☰]\s*/, "");
+        const original = element.dataset[key];
 
-if (lang === "fr") {
-  element.textContent = originalText;
-} else {
-  const translated = translations.en[original] || translations.en[cleanText];
-
-  if (translated) {
-    element.textContent = originalText.replace(original, translated);
-  }
-}
-
-      }
-
-      ["placeholder", "title", "aria-label"].forEach(function (attribute) {
-        if (element.hasAttribute(attribute)) {
-          const key = "original" + attribute;
-          if (!element.dataset[key]) {
-            element.dataset[key] = element.getAttribute(attribute);
-          }
-          const original = element.dataset[key];
-          if (lang === "fr") {
-            element.setAttribute(attribute, original);
-          } else if (translations.en[original]) {
-            element.setAttribute(attribute, translations.en[original]);
-          }
+        if (lang === "fr") {
+          element.setAttribute(attribute, original);
+        } else if (translations[original]) {
+          element.setAttribute(attribute, translations[original]);
         }
       });
     });
@@ -1141,9 +1195,10 @@ if (lang === "fr") {
   });
 
   document.getElementById("langEN")?.addEventListener("click", function () {
-  translatePage("en");
-});
+    translatePage("en");
+  });
 })();
 </script>
+
  
 </html>
