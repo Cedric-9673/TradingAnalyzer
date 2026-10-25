@@ -1042,5 +1042,82 @@ refreshTimer = window.setInterval(() => {
     });
   }
 </script>
-</body>
+</body> 
+ 
+<script>
+(function () {
+  const translations = {
+    en: {
+      "☰ Menu": "☰ Menu",
+      "Accueil": "Home",
+      "Abonnement": "Subscription",
+      "Analyse": "Analysis",
+      "Actualités": "News",
+      "À propos": "About",
+      "MARCHÉ : XAU/USD": "MARKET: XAU/USD",
+      "Or / dollar américain": "Gold / US dollar",
+      "Connexion au graphique…": "Connecting to chart…",
+      "PAS DE SIGNAL COMPLET": "NO COMPLETE SIGNAL",
+      "Acheter": "Buy",
+      "Vendre": "Sell",
+      "Abonnez-vous": "Subscribe",
+      "Choisir un forfait": "Choose a plan",
+      "Payer": "Pay",
+      "Nom": "Name",
+      "Téléphone": "Phone",
+      "Méthode de paiement": "Payment method"
+    },
+    fr: {}
+  };
+
+  function translatePage(lang) {
+    document.documentElement.lang = lang;
+
+    document.querySelectorAll("#langFR, #langEN").forEach(function (button) {
+      const active = button.id === (lang === "fr" ? "langFR" : "langEN");
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+
+    document.querySelectorAll("body *").forEach(function (element) {
+      if (element.children.length === 0) {
+        if (!element.dataset.originalText) {
+          element.dataset.originalText = element.textContent;
+        }
+
+        const original = element.dataset.originalText.trim();
+        if (lang === "fr") {
+          element.textContent = element.dataset.originalText;
+        } else if (translations.en[original]) {
+          element.textContent = translations.en[original];
+        }
+      }
+
+      ["placeholder", "title", "aria-label"].forEach(function (attribute) {
+        if (element.hasAttribute(attribute)) {
+          const key = "original" + attribute;
+          if (!element.dataset[key]) {
+            element.dataset[key] = element.getAttribute(attribute);
+          }
+          const original = element.dataset[key];
+          if (lang === "fr") {
+            element.setAttribute(attribute, original);
+          } else if (translations.en[original]) {
+            element.setAttribute(attribute, translations.en[original]);
+          }
+        }
+      });
+    });
+  }
+
+  document.getElementById("langFR")?.addEventListener("click", function () {
+    translatePage("fr");
+  });
+
+  document.getElementById("langEN")?.addEventListener("click", function () {
+    translatePage("en");
+  });
+})();
+</script>
+ 
 </html>
