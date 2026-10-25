@@ -1118,8 +1118,7 @@ const cleanText = original.replace(/^[⌂☰]\s*/, "");
   });
 
   document.getElementById("langEN")?.addEventListener("click", function () {
-  alert("Le bouton EN fonctionne !");
-  translatePage("en");
+  alert("Traductions disponibles : " + Object.keys(translations.en).length);
 });
 })();
 </script>
