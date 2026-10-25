@@ -1103,15 +1103,20 @@ const translations = {
           element.dataset.originalText = element.textContent;
         }
 
-        const original = element.dataset.originalText.trim();
+const originalText = element.dataset.originalText;
+const original = originalText.trim();
 const cleanText = original.replace(/^[⌂☰]\s*/, "");
-        if (lang === "fr") {
-  element.textContent = element.dataset.originalText;
-} else if (translations.en[original]) {
-  element.textContent = translations.en[original];
-} else if (translations.en[cleanText]) {
-  element.textContent = original.replace(cleanText, translations.en[cleanText]);
+
+if (lang === "fr") {
+  element.textContent = originalText;
+} else {
+  const translated = translations.en[original] || translations.en[cleanText];
+
+  if (translated) {
+    element.textContent = originalText.replace(original, translated);
+  }
 }
+
       }
 
       ["placeholder", "title", "aria-label"].forEach(function (attribute) {
