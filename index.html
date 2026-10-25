@@ -1086,11 +1086,14 @@ refreshTimer = window.setInterval(() => {
         }
 
         const original = element.dataset.originalText.trim();
+const cleanText = original.replace(/^[⌂☰]\s*/, "");
         if (lang === "fr") {
-          element.textContent = element.dataset.originalText;
-        } else if (translations.en[original]) {
-          element.textContent = translations.en[original];
-        }
+  element.textContent = element.dataset.originalText;
+} else if (translations.en[original]) {
+  element.textContent = translations.en[original];
+} else if (translations.en[cleanText]) {
+  element.textContent = original.replace(cleanText, translations.en[cleanText]);
+}
       }
 
       ["placeholder", "title", "aria-label"].forEach(function (attribute) {
