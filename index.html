@@ -452,10 +452,8 @@ style="display:block;width:100%;height:auto;border-radius:12px;margin-top:12px;"
         premiumStatus.textContent = "Veuillez choisir un forfait valide.";  
         return;  
       }  
-      const amount = planAmounts[planSelect.value];  
-      if (!window.confirm("Confirmez-vous avoir transféré " + amount.toLocaleString("fr-FR") +  
-        " FCFA via " + paymentMethod.value + " ?")) return;  
-  
+            const priceLabel = priceText(paymentMethod.value, planSelect.value);
+      if (!window.confirm("Confirmez-vous avoir envoyé " + priceLabel + " via " + paymentMethod.value + " ?")) return;
       subscribeBtn.disabled = true;  
       premiumStatus.textContent = "Envoi de la demande en cours…";  
       try {  
