@@ -342,8 +342,7 @@ style="display:block;width:100%;height:auto;border-radius:12px;margin-top:12px;"
   "use strict";  
   const nav = document.getElementById("mainNav");  
   const menuToggle = document.getElementById("menuToggle");  
-  const validPages = new Set(["homePage", "subscriptionPage", "analysisPage", "newsPage", "aboutPage"]);  
-  
+    const validPages = new Set(["homePage", "subscriptionPage", "analysisPage", "analysesPage", "newsPage", "aboutPage"]);
   function showPage(pageId, updateAddress = true) {  
     if (!validPages.has(pageId)) pageId = "homePage";  
     document.querySelectorAll(".page").forEach(page => {  
