@@ -398,8 +398,12 @@ style="display:block;width:100%;height:auto;border-radius:12px;margin-top:12px;"
   const premiumStatus = document.getElementById("premiumStatus");  
   const paymentInstructions = document.getElementById("paymentInstructions");  
   let paymentInfo = null;  
-  const planAmounts = { "7_days": 2500, "30_days": 5000, "90_days": 10000 };  
-  
+    const planAmounts = { "7_days": 2500, "30_days": 5000, "90_days": 10000 };
+  const planUsd = { "7_days": 5, "30_days": 10, "90_days": 20 };
+  function priceText(method, plan) {
+    if (method === "USDT (TRC20)") return planUsd[plan] + " USDT";
+    return planAmounts[plan].toLocaleString("fr-FR") + " FCFA";
+  }
   function updatePaymentInstructions() {  
     if (!paymentInstructions) return;  
     const method = paymentMethod.value;  
