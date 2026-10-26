@@ -404,21 +404,21 @@ style="display:block;width:100%;height:auto;border-radius:12px;margin-top:12px;"
     if (method === "USDT (TRC20)") return planUsd[plan] + " USDT";
     return planAmounts[plan].toLocaleString("fr-FR") + " FCFA";
   }
-  function updatePaymentInstructions() {  
-    if (!paymentInstructions) return;  
-    const method = paymentMethod.value;  
-    const recipient = paymentInfo && paymentInfo.methods ? paymentInfo.methods[method] : null;  
-    const amount = planAmounts[planSelect.value];  
-    if (!recipient || !amount) {  
-      paymentInstructions.textContent = "Le numéro de réception est indisponible. Réessayez plus tard.";  
-      return;  
-    }  
-    paymentInstructions.textContent = "Transférez " + amount.toLocaleString("fr-FR") +  
-      " FCFA via " + method + " au numéro " + recipient +  
-      ". Après le transfert, saisissez la référence figurant sur votre reçu.";  
-  }  
-  
-  async function loadPaymentInfo() {  
+  function updatePaymentInstructions() {
+    if (!paymentInstructions) return;
+    const method = paymentMethod.value;
+    const recipient = paymentInfo && paymentInfo.methods ? paymentInfo.methods[method] : null;
+    if (!recipient || !planAmounts[planSelect.value]) {
+      paymentInstructions.textContent = "Le moyen de paiement est indisponible. Réessayez plus tard.";
+      return;
+    }
+    const price = priceText(method, planSelect.value);
+    if (method === "USDT (TRC20)") {
+      paymentInstructions.textContent = "Envoyez exactement " + price + " sur le réseau TRC20 (Tron) à l’adresse : " + recipient + ". Attention : un autre réseau fait perdre les fonds. Ensuite, saisissez le TXID (hash) de la transaction.";
+    } else {
+      paymentInstructions.textContent = "Transférez " + price + " via " + method + " au numéro " + recipient + ". Après le transfert, saisissez la référence figurant sur votre reçu.";
+    }
+  }  () {  
     try {  
       const response = await fetch(PAYMENT_API + "/api/payment-info", { cache: "no-store" });  
       const data = await response.json();  
