@@ -993,20 +993,64 @@ style="display:block;width:100%;height:auto;border-radius:12px;margin-top:12px;"
     });  
   }  
   
-  loadCandles(currentInterval);  
-refreshTimer = window.setInterval(() => {  
-  document.getElementById("accessBtn").addEventListener("click", () => {  
-    const code = document.getElementById("accessCode").value.trim().toUpperCase();  
-    if (code) applyCode(code);  
-  });  
-  try {  
-    const savedCode = localStorage.getItem(CODE_KEY);  
-    if (savedCode) applyCode(savedCode);  
-  } catch (_) {}  
-  if (document.hidden) return;  
-  if (!document.getElementById("analysisPage").classList.contains("active")) return;  
-  loadCandles(currentInterval);  
-}, 60000);  
+  document.getElementById("accessBtn").addEventListener("click", () => {
+    const code = document.getElementById("accessCode").value.trim().toUpperCase();
+    if (code) applyCode(code);
+  });
+  try {
+    const savedCode = localStorage.getItem(CODE_KEY);
+    if (savedCode) applyCode(savedCode);
+  } catch (_) {}
+
+  const gallery = document.getElementById("analysesGallery");
+  let galleryLoaded = false;
+  async function loadGallery() {
+    gallery.textContent = "Chargement…";
+    try {
+      const response = await fetch(PAYMENT_API + "/api/analyses", { cache: "no-store" });
+      const data = await response.json();
+      gallery.replaceChildren();
+      if (!data.analyses || !data.analyses.length) {
+        gallery.textContent = "Aucune analyse publiée pour le moment.";
+        return;
+      }
+      galleryLoaded = true;
+      for (const a of data.analyses) {
+        const card = document.createElement("article");
+        card.className = "panel";
+        const h = document.createElement("h3");
+        h.textContent = a.title;
+        const d = document.createElement("div");
+        d.className = "note";
+        d.textContent = new Date(a.created_at.replace(" ", "T") + "Z").toLocaleDateString("fr-FR");
+        const src = PAYMENT_API + "/api/analyses/" + encodeURIComponent(a.id) + "/image";
+        const link = document.createElement("a");
+        link.href = src;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        const img = document.createElement("img");
+        img.src = src;
+        img.alt = a.title;
+        img.loading = "lazy";
+        img.style.cssText = "width:100%;height:auto;border-radius:8px;margin-top:8px";
+        link.appendChild(img);
+        card.append(h, d, link);
+        gallery.appendChild(card);
+      }
+    } catch (e) {
+      gallery.textContent = "Impossible de charger les analyses.";
+    }
+  }
+  window.addEventListener("tradinganalyzer:pagechange", () => {
+    if (document.getElementById("analysesPage").classList.contains("active") && !galleryLoaded) loadGallery();
+  });
+
+  loadCandles(currentInterval);
+  refreshTimer = window.setInterval(() => {
+    if (document.hidden) return;
+    if (!document.getElementById("analysisPage").classList.contains("active")) return;
+    loadCandles(currentInterval);
+  }, 60000);
   })();  
   </script>    <script>  
     if ("serviceWorker" in navigator) {  
