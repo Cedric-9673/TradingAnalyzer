@@ -286,6 +286,14 @@ style="display:block;width:100%;height:auto;border-radius:12px;margin-top:12px;"
     </ul>  
     <p class="note">Les lignes Entrée, SL (rouge) et TP (vert) s’affichent lorsqu’un signal complet est détecté. Le SL utilise l’extrême des 11 dernières bougies avec une marge; le TP vise un ratio théorique de 1:2. Ce sont des niveaux indicatifs, pas une garantie ni un conseil financier.</p>  
   </section>  
+  <section class="panel" id="iaPanel">
+    <div class="section-title">🤖 Assistant IA</div>
+    <div class="note">Pose une question sur l’analyse affichée. Réservé aux abonnés Premium (10 questions par jour).</div>
+    <textarea id="iaQuestion" rows="3" maxlength="500" placeholder="Ex : Pourquoi la tendance est haussière ?" style="width:100%;margin-top:10px;background:#0d1727;color:var(--text);border:1px solid #34465f;border-radius:8px;padding:10px;font-size:16px;font-family:inherit"></textarea>
+    <div class="row" style="margin-top:8px"><button id="iaBtn" class="premium-cta" type="button">Demander à l’IA</button></div>
+    <div id="iaAnswer" class="note" role="status" aria-live="polite" style="margin-top:10px;white-space:pre-wrap;font-size:14px;line-height:1.5"></div>
+    <div id="iaLeft" class="note"></div>
+  </section>
   </section>  
     <section class="page" id="analysesPage" aria-labelledby="analysesTitle">
     <div class="page-heading"><h2 id="analysesTitle">Analyses du marché</h2><p>Retrouvez nos dernières analyses de l’or en images. Elles sont indicatives et ne constituent pas un conseil financier.</p></div>
@@ -489,6 +497,7 @@ style="display:block;width:100%;height:auto;border-radius:12px;margin-top:12px;"
   const API_URL = "https://tradinganalyzer-api.cedricadjaito.workers.dev";  
   let premium = false;  
   const CODE_KEY = "ta_access_code";  
+  let iaContexte = null;
   
   function showLockedSignals() {  
     const badge = document.getElementById("signalBadge");  
@@ -772,6 +781,20 @@ style="display:block;width:100%;height:auto;border-radius:12px;margin-top:12px;"
     const matchingZone = localZones.slice().reverse().find(z => last.close >= z.low && last.close <= z.high);  
     const fvgDirection = matchingZone ? matchingZone.type : null;  
   
+    iaContexte = {
+      paire: "XAU/USD",
+      unite_de_temps: currentInterval,
+      prix: last.close,
+      tendance: trend,
+      bos_recent: bosDirection,
+      balayage_liquidite: sweepDirection,
+      retour_dans_fvg: fvgDirection,
+      plus_haut_recent: recentHigh,
+      plus_bas_recent: recentLow,
+      resistances: swingHighs.slice(-3).map(s => s.price),
+      supports: swingLows.slice(-3).map(s => s.price),
+      signal: null
+    };
     const buyChecks = [  
       {pass:trend === "bullish", label:"Tendance haussière (EMA 20 au-dessus de l’EMA 50)"},  
       {pass:bosDirection === "bullish", label:"BOS haussier récent"},  
@@ -823,6 +846,7 @@ style="display:block;width:100%;height:auto;border-radius:12px;margin-top:12px;"
       `Take Profit (TP) : <strong>${formatPrice(takeProfit)}</strong><br>` +  
       `<span class="note">Ratio risque/rendement théorique : 1:2 · Unités : ${currentInterval}</span>`;  
   
+    iaContexte.signal = { direction: direction, entree: entry, stop_loss: stopLoss, take_profit: takeProfit };
     return {  
       time: last.time,  
       position: direction === "buy" ? "belowBar" : "aboveBar",  
@@ -1061,6 +1085,42 @@ style="display:block;width:100%;height:auto;border-radius:12px;margin-top:12px;"
     if (!document.getElementById("analysisPage").classList.contains("active")) return;
     loadCandles(currentInterval);
   }, 60000);
+
+  // Assistant IA : le Worker garde la clé Gemini côté serveur.
+  const IA_API = "https://tradinganalyzer-ia.cedricadjaito.workers.dev";
+  const iaBtn = document.getElementById("iaBtn");
+  if (iaBtn) {
+    iaBtn.addEventListener("click", async () => {
+      const q = document.getElementById("iaQuestion").value.trim();
+      const out = document.getElementById("iaAnswer");
+      const left = document.getElementById("iaLeft");
+      left.textContent = "";
+      if (!q) { out.textContent = "Écris ta question d’abord."; return; }
+      let code = "";
+      try { code = localStorage.getItem(CODE_KEY) || ""; } catch (_) {}
+      if (!premium || !code) { out.textContent = "Cette fonction est réservée aux abonnés Premium. Active ton code d’accès d’abord."; return; }
+      if (!iaContexte) { out.textContent = "Attends que l’analyse soit chargée, puis réessaie."; return; }
+      iaBtn.disabled = true;
+      out.textContent = "L’assistant réfléchit…";
+      try {
+        const r = await fetch(IA_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: q, code: code, analyse: iaContexte })
+        });
+        const d = await r.json();
+        if (!r.ok) {
+          out.textContent = d.erreur || "Erreur, réessaie.";
+        } else {
+          out.textContent = d.reponse;
+          left.textContent = "Questions restantes aujourd’hui : " + d.restant;
+        }
+      } catch (e) {
+        out.textContent = "Connexion impossible. Vérifie ton internet.";
+      }
+      iaBtn.disabled = false;
+    });
+  }
   })();  
   </script>    <script>  
     if ("serviceWorker" in navigator) {  
